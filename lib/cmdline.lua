@@ -72,14 +72,14 @@ function CommandManager:execute(args)
                 local raArg = string.sub(m,3)
                 if cmd.switches[raArg] then
                     if args[i+1] and not isArg(args[i+1]) then
-                        Log:Error('Óï·¨´íÎó£¬Ìá¹©ÔÚ %s µÄÖµÃ»ÓĞ¶ÔÓ¦µÄ²ÎÊı¡£',i+1)
+                        Log:Error('è¯­æ³•é”™è¯¯ï¼Œæä¾›åœ¨ %s çš„å€¼æ²¡æœ‰å¯¹åº”çš„å‚æ•°ã€‚',i+1)
                         inErr = true
                         break
                     end
                     switches[raArg] = true
                 elseif cmd.arguments[raArg] then
                     if not args[i+1] or isArg(args[i+1]) then
-                        Log:Error('Óï·¨´íÎó£¬²ÎÊı %s µÄÎ´Ìá¹©Öµ¡£',m)
+                        Log:Error('è¯­æ³•é”™è¯¯ï¼Œå‚æ•° %s çš„æœªæä¾›å€¼ã€‚',m)
                         inErr = true
                         break
                     end
@@ -94,7 +94,7 @@ function CommandManager:execute(args)
                         arguments[raArg] = string.split(args[i+1],',')
                     end
                 else
-                    Log:Error('Î´¶¨ÒåµÄ²ÎÊı\"%s\"£¬ÈçĞè°ïÖúÇëÊ¹ÓÃ help --cmd %s¡£',m,args[1])
+                    Log:Error('æœªå®šä¹‰çš„å‚æ•°\"%s\"ï¼Œå¦‚éœ€å¸®åŠ©è¯·ä½¿ç”¨ help --cmd %sã€‚',m,args[1])
                     inErr = true
                     break
                 end
@@ -104,7 +104,7 @@ function CommandManager:execute(args)
             for arg,cont in pairs(arguments) do
                 if cont == '(*nil)' then
                     if cmd.arguments[arg].required then
-                        Log:Error('È±ÉÙ²ÎÊı %s£¬ÈçĞè°ïÖúÇëÊ¹ÓÃ help¡£',arg)
+                        Log:Error('ç¼ºå°‘å‚æ•° %sï¼Œå¦‚éœ€å¸®åŠ©è¯·ä½¿ç”¨ helpã€‚',arg)
                         inErr = true
                         break
                     else
@@ -117,7 +117,7 @@ function CommandManager:execute(args)
             end
         end
     else
-        Log:Error('Î´¶¨ÒåµÄÖ¸Áî\"%s\"£¬ÈçĞè°ïÖúÇëÊ¹ÓÃ --help¡£',args[1])
+        Log:Error('æœªå®šä¹‰çš„æŒ‡ä»¤\"%s\"ï¼Œå¦‚éœ€å¸®åŠ©è¯·ä½¿ç”¨ --helpã€‚',args[1])
     end
     return false
 end
@@ -133,7 +133,7 @@ function CommandManager.Helper:printHelp(whatCmd)
     else
         local tCmd = _cmds[whatCmd]
         if not tCmd then
-            Log:Error('²»´æÔÚµÄÖ¸Áî£¡')
+            Log:Error('ä¸å­˜åœ¨çš„æŒ‡ä»¤ï¼')
             return
         end
         whatCmd = { [whatCmd] = tCmd }
