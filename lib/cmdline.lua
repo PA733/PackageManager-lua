@@ -13,12 +13,13 @@ Command = {
 }
 local _cmds = {}
 
-function Command:register(name,description,callback)
+function Command:register(name,description,callback,hidden)
     local origin = {
         name = name,
         description = description,
         switches = {},
         arguments = {},
+        hidden = hidden or false,
         handler = callback
     }
     setmetatable(origin,self)
@@ -127,30 +128,31 @@ function CommandManager:getCommand(name)
 end
 
 function CommandManager.Helper:printHelp(whatCmd)
-    whatCmd = whatCmd or '(*all)'
-    if whatCmd == '(*all)' then
+    if not whatCmd then
         whatCmd = _cmds
     else
         local tCmd = _cmds[whatCmd]
-        if not tCmd then
+        if not tCmd or tCmd.hidden then
             Log:Error('不存在的指令！')
             return
         end
         whatCmd = { [whatCmd] = tCmd }
     end
-    Log:Info('Usage: %s [options] [arguments|switches]',Command._prefix)
+    Log:Info('Usage: %s [options] --[arguments|switches]',Command._prefix)
     Log:Info('Available options are:')
     for name,res in pairs(whatCmd) do
-        Log:Info('      %s\t\t%s',name,res.description)
-        for aname,ares in pairs(res.arguments) do
-            local m = {'[',']'}
-            if ares.required then
-                m = {'<','>'}
+        if not res.hidden then
+            Log:Info('      %s\t\t%s',name,res.description)
+            for aname,ares in pairs(res.arguments) do
+                local m = ''
+                if ares.required then
+                    m = '|required'
+                end
+                Log:Info('          %s\t   (%s%s) %s',aname,ares.type,m,ares.description)
             end
-            Log:Info('          %s--%s%s\t(%s) %s',m[1],aname,m[2],ares.type,ares.description)
-        end
-        for aname,ares in pairs(res.switches) do
-            Log:Info('          --%s\t%s',aname,ares.description)
+            for aname,ares in pairs(res.switches) do
+                Log:Info('          %s\t   %s',aname,ares.description)
+            end
         end
     end
 end
