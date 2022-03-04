@@ -9,3 +9,6 @@ FileSystem = require('filesystem')
 
 --- Check developer mode.
 DevMode = FileSystem:isExist('DevMode')
+
+--- Change Code Page.
+os.execute('chcp 65001 > nul')
