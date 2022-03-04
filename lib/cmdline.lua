@@ -121,7 +121,7 @@ function CommandManager:execute(args)
     end
     local cmd = self:getCommand(args[1])
     if not cmd then
-        Log:Error('未定义的指令\"%s\"，如需帮助请使用 --help。',args[1])
+        Log:Error('未定义的指令\"%s\"，如需帮助请使用 help。',args[1])
         return false
     end
     local switches = {}
@@ -199,17 +199,20 @@ end
 --- 打印一个命令的帮助信息
 ---@param whatCmd string
 function CommandManager.Helper:printHelp(whatCmd)
+    local m
     if not whatCmd then
         whatCmd = _cmds
+        m = '[options]'
     else
         local tCmd = _cmds[whatCmd]
         if not tCmd or tCmd.hidden then
             Log:Error('不存在的指令！')
             return
         end
+        m = whatCmd
         whatCmd = { [whatCmd] = tCmd }
     end
-    Log:Info('Usage: %s [options] --[arguments|switches] ...',Command._prefix)
+    Log:Info('Usage: %s %s --[arguments|switches] ...',Command._prefix,m)
     Log:Info('Available options are:')
     for name,res in pairs(whatCmd) do
         if not res.hidden then
