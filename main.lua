@@ -161,4 +161,6 @@ for k,v in pairs(arg) do
         call_cmds[k] = v
     end
 end
-CommandManager:execute(call_cmds)
+if next(call_cmds) then
+    CommandManager:execute(call_cmds)
+end
