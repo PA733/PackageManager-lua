@@ -46,9 +46,16 @@ function Logger:Error(what,...)
 end
 
 function Logger:Debug(what,...)
-    what = string.format(what,...)
     if not DevMode then
         return
+    end
+    local T = type(what)
+    if T == 'boolean' then
+        what = '<boolean> '..tostring(what)
+    elseif T == 'string' then
+        what = string.format(what,...)
+    elseif T == 'table' then
+        what = table.toDebugString(what)
     end
     io.write(
         Sym..'[38;2;173;216;230m'..os.date('%X')..' ',
@@ -56,6 +63,11 @@ function Logger:Debug(what,...)
         Sym..'[37m['..self.title..'] '..what..
         Sym..'[0m\n'
     )
+    if T ~= 'string' then
+        for k,v in pairs({...}) do
+            self:Debug(v)
+        end
+    end
 end
 
 return Logger
