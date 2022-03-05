@@ -11,8 +11,6 @@ require "cmdline"
 require "package-manager"
 require "cloud"
 
-Cloud.Download('https://raw.githubusercontent.com/Redbeanw44602/TestRepo/main/10M.speedtest')
-
 Fs = require "filesystem"
 Log = Logger:new('Main')
 

@@ -114,7 +114,7 @@ function Logger:Debug(what,...)
     end
     local T = type(what)
     if T == 'boolean' then
-        what = '<boolean> '..tostring(what)
+        what = tostring(what)
     elseif T == 'string' then
         what = string.format(what,...)
     elseif T == 'table' then
