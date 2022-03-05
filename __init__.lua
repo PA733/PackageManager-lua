@@ -4,8 +4,8 @@
 
 --]] ----------------------------------------
 
-package.path = package.path..';.\\lib\\?.lua;.\\lib\\?\\?.lua;.\\lib\\socket\\?.lua'
-package.cpath = package.cpath..';.\\lib\\?\\core.dll;.\\lib\\?.dll'
+package.path = package.path..';.\\share\\?.lua'
+package.cpath = package.cpath..';.\\lib\\?.dll'
 FileSystem = require('filesystem')
 
 --- Check developer mode.
