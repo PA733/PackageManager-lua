@@ -4,7 +4,7 @@
 
 --]] ----------------------------------------
 
-local function stdPath(path)
+local function stdpath(path)
     local a = string.reverse(path)
     if string.find(a,'\\')==1 then
         return string.sub(path,1,string.len(path)-1)
@@ -24,7 +24,7 @@ function fs:getDirectoryList(path)
     for file in lfs.dir(path) do
         if file~='.' and file~='..' then
             list[#list+1] = path..file
-            local attr = lfs.attributes(stdPath(path))
+            local attr = lfs.attributes(stdpath(path))
             if attr and attr.mode=='directory' then
                 list = Array.Concat(list,fs:getDirectoryList(path..file..'\\'))
             end
@@ -75,7 +75,7 @@ function fs:getType(path)
 end
 
 function fs:isExist(path)
-    local attr = lfs.attributes(stdPath(path))
+    local attr = lfs.attributes(stdpath(path))
     return attr ~= nil
 end
 

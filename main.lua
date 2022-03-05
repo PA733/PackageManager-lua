@@ -10,7 +10,66 @@ require('native-type-helper')
 require('cmdline')
 require('package-manager')
 
+Fs = require('filesystem')
 Log = Logger:new('Main')
+
+JSON = {
+	_base = require('dkjson')
+}
+
+LPM = {
+    Version = {
+        major = 1,
+        minor = 0,
+        revision = 0
+    }
+}
+
+function LPM.Version:getNum()
+    return self.major*100 + self.minor*10 + self.revision
+end
+
+function LPM.Version:getStr()
+    return string.format('%s.%s%s',self.major,self.minor,self.revision)
+end
+
+function JSON.parse(str)
+    local stat,rtn = pcall(JSON._base.decode,str)
+    if stat then
+        return rtn
+    end
+    Logger:Debug('Could not parse JSON, content = %s',str)
+    return nil
+end
+function JSON.stringify(object)
+    local stat,rtn = pcall(JSON._base.encode,object)
+    if stat then
+        return rtn
+    end
+    Logger:Debug('Could not stringify object.',object)
+    return nil
+end
+
+--- Load config
+
+local cfg = {
+    version = LPM.Version:getNum(),
+    output = {
+        noColor = false
+    }
+}
+
+local loadcfg = JSON.parse(Fs:readFrom('config.json'))
+for n,path in pairs(table.getAllPaths(cfg,false)) do
+    local m = table.getKey(loadcfg,path)
+    if m then
+        table.setKey(cfg,path,m)
+    end
+end
+
+if cfg.output.noColor then
+    Logger.setNoColor()
+end
 
 -- [CMD] Help
 
