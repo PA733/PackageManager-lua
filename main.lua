@@ -14,43 +14,47 @@ Log = Logger:new('Main')
 
 -- [CMD] Help
 
-local HelpCommand = Command:register('help','显示帮助文本。',function (switches,arguments)
-    CommandManager.Helper:printHelp(arguments['cmd'])
+local HelpCommand = Command:register('help','显示帮助文本。',function (dict)
+    CommandManager.Helper:printHelp(dict.pretext)
 end)
-HelpCommand.Argument:add('cmd','give cmd.','string',true)
+HelpCommand.PreText:set('command',true)
 
 -- [CMD] Install
 
-local InstallCommand = Command:register('install','安装一个软件包',function (switches,arguments)
+local InstallCommand = Command:register('install','安装一个软件包',function (dict)
     
 end)
+InstallCommand.PreText:set('name')
 InstallCommand.Switch:add('yes','跳过安装确认')
 
 -- [CMD] Update.
 
-local UpdateCommand = Command:register('update','执行升级操作',function ()
+local UpdateCommand = Command:register('update','执行升级操作',function (dict)
     
 end)
+UpdateCommand.PreText:set('name')
 UpdateCommand.Switch:add('yes','跳过升级确认')
 
 -- [CMD] Remove
 
-local RemoveCommand = Command:register('remove','删除一个软件包',function ()
+local RemoveCommand = Command:register('remove','删除一个软件包',function (dict)
     
 end)
+RemoveCommand.PreText:set('name')
 RemoveCommand.Switch:add('yes','跳过删除确认')
 RemoveCommand.Switch:add('purge','同时清除数据')
 
 -- [CMD] Purge
 
-local PurgeCommand = Command:register('purge','清除指定软件的数据',function ()
+local PurgeCommand = Command:register('purge','清除指定软件的数据',function (dict)
     
 end)
+PurgeCommand.PreText:set('name')
 PurgeCommand.Switch:add('yes','跳过清除确认')
 
 -- [CMD] Repo
 
-local RepoCommand = Command:register('repo','管理仓库',function ()
+local RepoCommand = Command:register('repo','管理仓库',function (dict)
     
 end)
 RepoCommand.Switch:add('check-all','检查配置的所有源')
@@ -60,21 +64,22 @@ RepoCommand.Argument:add('switch','选择源','string',true)
 
 -- [CMD] Pack
 
-local PackCommand = Command:register('pack','打包器',function ()
+local PackCommand = Command:register('pack','打包器',function (dict)
     
 end)
 
 -- [CMD] Config
 
-local ConfigCommand = Command:register('config','配置LPM',function ()
+local ConfigCommand = Command:register('config','配置LPM',function (dict)
     
 end)
+ConfigCommand.PreText:set('cfg')
 ConfigCommand.Switch:add('reset','重设为默认值')
 ConfigCommand.Argument:add('update','更新该项为...','string',true)
 
 -- [CMD] Cloud Protocol
 
-local CloudCommand = Command:register('cloud-protocol','下载组件',function ()
+local CloudCommand = Command:register('cloud-protocol','下载组件',function (dict)
 
 end)
 CloudCommand.Switch:add('list','列出所有下载组件')

@@ -13,10 +13,12 @@ local _cmds = {}
 ---@class Command
 ---@class CommandSwitch
 ---@class CommandArgument
+---@class CommandPreText
 Command = {
     _prefix = 'lpm',
     Argument = {},
-    Switch = {}
+    Switch = {},
+    PreText = {}
 }
 
 --- 注册一个命令
@@ -35,14 +37,21 @@ function Command:register(name,description,callback,hidden)
         Switch = {
             data = {}
         },
+        PreText = {
+            data = {
+                used = false
+            }
+        },
         handler = callback
     }
     setmetatable(origin,self)
     setmetatable(origin.Argument,self.Argument)
     setmetatable(origin.Switch,self.Switch)
+    setmetatable(origin.PreText,self.PreText)
     self.__index = self
     self.Argument.__index = self.Argument
     self.Switch.__index = self.Switch
+    self.PreText.__index = self.PreText
     _cmds[name] = origin
     Log:Debug('Registering command: %s',name)
     return origin
@@ -107,6 +116,19 @@ function Command.Argument:getAll()
     return rtn
 end
 
+--- 设置预提供信息
+---@param name string
+---@param canIgnore boolean
+---@return boolean
+function Command.PreText:set(name,canIgnore)
+    self.data = {
+        used = true,
+        name = name,
+        required = not canIgnore
+    }
+    return true
+end
+
 ---@class CommandManager
 CommandManager = {
     Helper = {}
@@ -126,6 +148,7 @@ function CommandManager:execute(args)
     end
     local switches = {}
     local arguments = {}
+    local pretext = nil
     for n,switch in pairs(cmd.Switch:getAll()) do
         switches[switch] = false
     end
@@ -168,6 +191,10 @@ function CommandManager:execute(args)
                 inErr = true
                 break
             end
+        elseif i == 2 then
+            if cmd.PreText.data.used then
+                pretext = m
+            end
         end
     end
     if not inErr then
@@ -182,8 +209,16 @@ function CommandManager:execute(args)
                 end
             end
         end
+        if cmd.PreText.data.required and not pretext then
+            Log:Error('缺少参数 %s，如需帮助请使用 help。',cmd.PreText.data.name)
+            inErr = true
+        end
         if not inErr then
-            cmd.handler(switches,arguments)
+            cmd.handler({
+                switch = switches,
+                args = arguments,
+                pretext = pretext
+            })
         end
     end
     return false
@@ -216,13 +251,23 @@ function CommandManager.Helper:printHelp(whatCmd)
     Log:Info('Available options are:')
     for name,res in pairs(whatCmd) do
         if not res.hidden then
-            Log:Info('      %s\t%s',name,res.description)
-            for aname,ares in pairs(res.Argument.data) do
-                local m = ''
-                if ares.required then
-                    m = '|required'
+            local pt = ''
+            local pret = res.PreText
+            if pret.data.used then
+                if pret.data.required then
+                    pt = string.format(' <%s>',pret.data.name)
+                else
+                    pt = string.format(' [%s]',pret.data.name)
                 end
-                Log:Info('          %s - (%s%s) %s',aname,ares.type,m,ares.description)
+                
+            end
+            Log:Info('      %s%s\t%s',name,pt,res.description)
+            for aname,ares in pairs(res.Argument.data) do
+                local f = ''
+                if ares.required then
+                    f = '|required'
+                end
+                Log:Info('          %s - (%s%s) %s',aname,ares.type,f,ares.description)
             end
             for aname,ares in pairs(res.Switch.data) do
                 Log:Info('          %s - (switch) %s',aname,ares.description)
