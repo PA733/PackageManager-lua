@@ -4,13 +4,16 @@
 
 --]] ----------------------------------------
 
-require('__init__')
-require('logger')
-require('native-type-helper')
-require('cmdline')
-require('package-manager')
+require "__init__"
+require "logger"
+require "native-type-helper"
+require "cmdline"
+require "package-manager"
+require "cloud"
 
-Fs = require('filesystem')
+Cloud.Download('https://raw.githubusercontent.com/Redbeanw44602/TestRepo/main/10M.speedtest')
+
+Fs = require "filesystem"
 Log = Logger:new('Main')
 
 JSON = {
@@ -62,8 +65,10 @@ local cfg = {
 local loadcfg = JSON.parse(Fs:readFrom('config.json'))
 for n,path in pairs(table.getAllPaths(cfg,false)) do
     local m = table.getKey(loadcfg,path)
-    if m then
+    if m ~= nil then
         table.setKey(cfg,path,m)
+    else
+        Log:Error('配置文件丢失 %s, 已使用默认值。',path)
     end
 end
 
