@@ -28,7 +28,6 @@ Cloud = {
             size_vaild = false,
             completed = false
         }
-        local start_time = os.time()
         local data = ''
         local easy = curl.easy {
             url = str,
@@ -37,9 +36,6 @@ Cloud = {
             end,
             progressfunction = function (size,downloaded,uks_1,uks_2)
                 local Rec = proInfo
-                if Rec.completed then
-                    return
-                end
                 Rec.call_times = Rec.call_times + 1
                 local time = os.time()
                 local speed = Rec.average_speed
@@ -73,22 +69,21 @@ Cloud = {
                 if Rec.max_size < strlen then
                     Rec.max_size = strlen
                 end
-                if size == downloaded and size ~= 0 then
-                    Rec.completed = true
-                    formatted = string.format(' √ Completed, [%s] %sM/s (%sM).',Rec.progress,Rec.average_speed,SizeConv.Byte2Mb(downloaded))
-                end
                 io.write('\r',formatted,string.rep(' ',Rec.max_size - strlen))
             end,
             noprogress = false,
-            ssl_verifypeer = false
+            ssl_verifypeer = false,
+            timeout = 60
         }
-        easy:perform()
-        io.write(string.rep(' ',20),'\n')
-        easy:close()
-        completed_callback{
-            duration = os.time() - start_time + 1,
+        local msf = easy:perform()
+        io.write(string.format('\r √ Completed, [%s] %sM/s (%sM).',string.rep('▰',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
+        pcall(completed_callback,{
+            status = toBool(msf),
+            code = msf:getinfo_response_code(),
+            duration = msf:getinfo_total_time(),
             data = data
-        }
+        })
+        easy:close()
 
     end
 }
