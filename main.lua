@@ -14,6 +14,14 @@ require "cloud"
 Fs = require "filesystem"
 Log = Logger:new('Main')
 
+Cloud:LanzouGet('i6x1kaf?p',nil,nil,{
+    writefunction = function ()
+        
+    end
+},function ()
+    
+end)
+
 JSON = {
 	_base = require('dkjson')
 }
