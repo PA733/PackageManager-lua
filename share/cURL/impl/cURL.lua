@@ -316,7 +316,7 @@ end
 
 function Easy:post(data)
   local form = curl.form()
-  local ok, err = true
+  local ok, err = true, nil
 
   for k, v in pairs(data) do
     if type(v) == "string" then
