@@ -7,7 +7,6 @@
 local curl = require "cURL"
 require "logger"
 
-local Log = Logger:new('Cloud')
 local SizeConv = {
     Byte2Mb = function (num,saveBit)
         saveBit = saveBit or 2
@@ -15,19 +14,55 @@ local SizeConv = {
     end
 }
 
+local id_count = 0
+function PtoId()
+    id_count = id_count + 1
+    return id_count
+end
+
 Cloud = {
     Protocol = {
-        Http = 1,
-        Lanzou = 2,
-        Ftp = 3
+        ['Http'] = {
+            id = PtoId(),
+            prefix = { 'http://', 'https://' }
+        },
+        ['Lanzou'] = {
+            id = PtoId(),
+            prefix = { 'lanzou://' }
+        },
+        ['Ftp'] = {
+            id = PtoId(),
+            prefix = { 'ftp://' }
+        }
     },
     UA = "Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Mobile Safari/537.36 Edg/99.0.1150.30"
 }
 
-function Cloud:FtpGet()
-    -- TODO.
+
+--- 选择合适的下载协议
+---@param url string
+function Cloud.Protocol:Fetch(url)
+    for key,value in pairs(self) do
+        if type(value) == 'table' then
+            for n,prefix in pairs(value.prefix) do
+                if string.sub(url,1,string.len(prefix)) == prefix then
+                    return value
+                end
+            end
+        end
+    end
+    return nil
 end
-function Cloud:LanzouGet(shareId,subdomain,passwd,payload,callback)
+
+local LzLog = Logger:new('Lanzou')
+
+--- 蓝奏云解析下载
+---@param shareId string 分享ID，即分享链接末部分
+---@param subdomain string 自定义子域名（如果有），可以为nil
+---@param passwd string 密码（如果有），可以为nil
+---@param payload table 请求载荷
+---@param callback function 回调函数
+function Cloud.Protocol.Lanzou:get(shareId,subdomain,passwd,payload,callback)
     subdomain = subdomain or 'www'
     local links = {
         "lanzoux.com",
@@ -35,6 +70,8 @@ function Cloud:LanzouGet(shareId,subdomain,passwd,payload,callback)
         "lanzous.com"
     }
     for n,link in pairs(links) do
+        LzLog:Debug('使用域名: %s',link)
+        LzLog:Debug('正在解析分享: %s',shareId)
         local url = string.format('https://%s.%s/tp/%s',subdomain,link,shareId)
         local data = ''
         local page = curl.easy {
@@ -56,26 +93,35 @@ function Cloud:LanzouGet(shareId,subdomain,passwd,payload,callback)
         page:perform()
         page:close()
         if string.find(data,'文件取消分享了') then
+            LzLog:Error('该文件分享链接已失效')
             callback {
                 status = false,
                 code = -1001
             }
             return
         end
-        local file_name = string.match(data,'<div class="md">([^\"]*) <span class="mtt">')
-        local release_date = string.match(data,'<span class="mt2">时间:</span>([^\"]*) <span')
-        local uploader = string.match(data,'<span class="mt2">发布者:</span>([^\"]*) <span')
-        local downlink = string.match(data,'href = \'([^\"]*)\' +')
-        local fileId = string.match(data,'var loaddown = \'([^\"]*)\';')
-        if fileId and file_name and release_date and uploader and downlink then
+        local file_name,release_date,uploader_name,downlink,fileId
+        local lzReq = pcall(function()
+            file_name = string.match(data,'<div class="md">([^\"]*) <span class="mtt">')
+            release_date = string.match(data,'<span class="mt2">时间:</span>([^\"]*) <span')
+            uploader_name = string.match(data,'<span class="mt2">发布者:</span>([^\"]*) <span')
+            downlink = string.match(data,'href = \'([^\"]*)\' +')
+            fileId = string.match(data,'var loaddown = \'([^\"]*)\';')
             fileId = string.match(fileId,'([^\"]*)\';')
-        else
+        end)
+        if not lzReq then
+            LzLog:Error('解析失败')
             callback {
                 status = false,
                 code = -1002
             }
             return
         end
+        LzLog:Debug('文件名: %s',file_name)
+        LzLog:Debug('发布日期: %s',release_date)
+        LzLog:Debug('上传者: %s',uploader_name)
+        LzLog:Debug('跳转链接: %s',downlink)
+        LzLog:Debug('下载ID: %s',fileId)
         local redirect = curl.easy {
             url = downlink..fileId,
             httpheader = {
@@ -91,13 +137,18 @@ function Cloud:LanzouGet(shareId,subdomain,passwd,payload,callback)
         }
         redirect:perform()
         local final_link = redirect:getinfo_redirect_url()
+        LzLog:Debug('下载链接: %s',final_link)
         redirect:close()
         self:HttpGet(final_link,payload,callback)
         break
     end
 end
 
-function Cloud:HttpGet(url,payload,callback)
+--- HTTP（s）下载
+---@param url string 链接
+---@param payload string 请求载荷
+---@param callback function 回调函数
+function Cloud.Protocol.Http:get(url,payload,callback)
     local proInfo = {
         recording = {},
         call_times = 0,
@@ -168,6 +219,10 @@ function Cloud:HttpGet(url,payload,callback)
     }
     easy:close()
 
+end
+
+function Cloud.Protocol.Ftp:get()
+    -- TODO.
 end
 
 return Cloud
