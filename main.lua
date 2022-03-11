@@ -96,6 +96,7 @@ local InstallCommand = Command:register('install','安装一个软件包',functi
 end)
 InstallCommand.PreText:set('name')
 InstallCommand.Switch:add('yes','跳过安装确认')
+InstallCommand.Switch:add('fix-missing','修复安装')
 
 -- [CMD] Update.
 
