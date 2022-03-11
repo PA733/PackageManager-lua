@@ -5,7 +5,10 @@
 --]] ----------------------------------------
 
 local curl = require "cURL"
+local JSON = require "dkjson"
 require "logger"
+
+local Log = Logger:new('Cloud')
 
 local SizeConv = {
     Byte2Mb = function (num,saveBit)
@@ -14,24 +17,21 @@ local SizeConv = {
     end
 }
 
-local id_count = 0
-function PtoId()
-    id_count = id_count + 1
-    return id_count
-end
-
 Cloud = {
     Protocol = {
         ['Http'] = {
-            id = PtoId(),
             prefix = { 'http://', 'https://' }
         },
         ['Lanzou'] = {
-            id = PtoId(),
-            prefix = { 'lanzou://' }
+            prefix = { 'lanzou://' },
+            servers = {
+                'lanzoux.com',
+                'lanzoui.com',
+                'lanzouf.com',
+                'lanzous.com'
+            }
         },
         ['Ftp'] = {
-            id = PtoId(),
             prefix = { 'ftp://' }
         }
     },
@@ -54,76 +54,20 @@ function Cloud.Protocol:Fetch(url)
     return nil
 end
 
-local LzLog = Logger:new('Lanzou')
-
 --- 蓝奏云解析下载
----@param shareId string 分享ID，即分享链接末部分
----@param subdomain string 自定义子域名（如果有），可以为nil
+---
+--- *注意* 只支持单文件解析，目录解析暂不支持
+---
+---@param shareId string 分享ID，即分享链接末部分=
 ---@param passwd string 密码（如果有），可以为nil
 ---@param payload table 请求载荷
 ---@param callback function 回调函数
-function Cloud.Protocol.Lanzou:get(shareId,subdomain,passwd,payload,callback)
-    subdomain = subdomain or 'www'
-    local links = {
-        "lanzoux.com",
-        "lanzoui.com",
-        "lanzous.com"
-    }
-    for n,link in pairs(links) do
-        LzLog:Debug('使用域名: %s',link)
-        LzLog:Debug('正在解析分享: %s',shareId)
-        local url = string.format('https://%s.%s/tp/%s',subdomain,link,shareId)
-        local data = ''
-        local page = curl.easy {
+function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
+
+    local Log = Logger:new('Lanzou')
+    local function getRedirect(url)
+        local redic = curl.easy {
             url = url,
-            httpheader = {
-                "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Encoding: gzip, deflate, sdch, br",
-                "Accept-Language: zh-CN,zh;q=0.8"
-            },
-            writefunction = function (str)
-                data = data..str
-            end,
-            useragent = Cloud.UA,
-            accept_encoding = 'gzip,deflate',
-            ssl_verifypeer = false,
-            ssl_verifyhost = false,
-            timeout = 5
-        }
-        page:perform()
-        page:close()
-        if string.find(data,'文件取消分享了') then
-            LzLog:Error('该文件分享链接已失效')
-            callback {
-                status = false,
-                code = -1001
-            }
-            return
-        end
-        local file_name,release_date,uploader_name,downlink,fileId
-        local lzReq = pcall(function()
-            file_name = string.match(data,'<div class="md">([^\"]*) <span class="mtt">')
-            release_date = string.match(data,'<span class="mt2">时间:</span>([^\"]*) <span')
-            uploader_name = string.match(data,'<span class="mt2">发布者:</span>([^\"]*) <span')
-            downlink = string.match(data,'href = \'([^\"]*)\' +')
-            fileId = string.match(data,'var loaddown = \'([^\"]*)\';')
-            fileId = string.match(fileId,'([^\"]*)\';')
-        end)
-        if not lzReq then
-            LzLog:Error('解析失败')
-            callback {
-                status = false,
-                code = -1002
-            }
-            return
-        end
-        LzLog:Debug('文件名: %s',file_name)
-        LzLog:Debug('发布日期: %s',release_date)
-        LzLog:Debug('上传者: %s',uploader_name)
-        LzLog:Debug('跳转链接: %s',downlink)
-        LzLog:Debug('下载ID: %s',fileId)
-        local redirect = curl.easy {
-            url = downlink..fileId,
             httpheader = {
                 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Encoding: gzip, deflate',
@@ -135,12 +79,164 @@ function Cloud.Protocol.Lanzou:get(shareId,subdomain,passwd,payload,callback)
             },
             ssl_verifypeer = false
         }
-        redirect:perform()
-        local final_link = redirect:getinfo_redirect_url()
-        LzLog:Debug('下载链接: %s',final_link)
-        redirect:close()
-        self:HttpGet(final_link,payload,callback)
-        break
+        redic:perform()
+        local final_link = redic:getinfo_redirect_url()
+        local code = redic:getinfo_response_code()
+        redic:close()
+        return code,final_link
+    end
+
+    for tryingNum,link in pairs(self.servers) do
+
+        --- Init.
+        Log:Debug('使用域名: %s',link)
+        Log:Debug('正在解析分享: %s',shareId)
+        local baseUrl = string.format('https://www.%s/',link)
+        local url = string.format('%stp/%s',baseUrl,shareId)
+        local data = ''
+
+        --- Get lanzou page, get informations.
+        local page = curl.easy {
+            url = url,
+            httpheader = {
+                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Encoding: gzip, deflate, sdch, br',
+                'Accept-Language: zh-CN,zh;q=0.8'
+            },
+            writefunction = function (str)
+                data = data..str
+            end,
+            useragent = Cloud.UA,
+            accept_encoding = 'gzip,deflate',
+            ssl_verifypeer = false,
+            ssl_verifyhost = false,
+            timeout = 15
+        }
+        page:perform()
+        local page_rtncode = page:getinfo_response_code()
+        page:close()
+
+        --- Check page(server) status.
+        if page_rtncode == 200 then
+
+            if string.find(data,'文件取消分享了') then
+                Log:Error('该文件分享链接已失效')
+                callback {
+                    status = false,
+                    code = -1
+                }
+                return
+            end
+
+            if string.find(data,'pwd') then
+                if not passwd then
+                    Log:Error('提取码错误')
+                    callback {
+                        status = false,
+                        code = -1
+                    }
+                    return
+                end
+                --- Get file over passcode.
+                local sign = string.match(data,'\'sign\':\'([^\"]*)\',\'p\':pwd')
+                if not sign then
+                    Log:Error('SIGN获取失败')
+                    callback {
+                        status = false,
+                        code = -1
+                    }
+                    return
+                end
+                local form = curl.form()
+                form:add_content('action','downprocess')
+                form:add_content('sign',sign)
+                form:add_content('p',passwd)
+                local response = ''
+                local ajaxm = curl.easy {
+                    url = string.format('https://wwa.%s/ajaxm.php',link),
+                    httpheader = {
+                        'Referer: '..baseUrl,
+                        'Accept-Language:zh-CN,zh;q=0.9'
+                    },
+                    post = true,
+                    httppost = form,
+                    writefunction = function (str)
+                        response = response..str
+                    end,
+                    useragent = Cloud.UA,
+                    ssl_verifypeer = false,
+                    ssl_verifyhost = false,
+                    timeout = 15
+                }
+                ajaxm:perform()
+                local ajax_rtncode = ajaxm:getinfo_response_code()
+                ajaxm:close()
+                form:free()
+                if ajax_rtncode ~= 200 then
+                    Log:Error('蓝奏云返回异常代码 %s，获取失败。',ajax_rtncode)
+                    callback {
+                        status = false,
+                        code = -1
+                    }
+                    return
+                end
+                local rtn_stat,rtn_cont = pcall(JSON.decode,response)
+                if rtn_stat and rtn_cont.zt == 1 then
+                    local rtnCode,downUrl = getRedirect(string.format('%s/file/%s',rtn_cont.dom,rtn_cont.url))
+                    Cloud.Protocol:Fetch(downUrl):get(downUrl,payload,callback)
+                else
+                    Log:Error('蓝奏云返回了错误的信息，获取失败。')
+                    callback {
+                        status = false,
+                        code = -1
+                    }
+                    return
+                end
+                break
+            else
+                --- Get file direct.
+                local downlink,fileId
+                local lzReq = pcall(function()
+                    --- file_name = string.match(data,'<div class="md">([^\"]*) <span class="mtt">')
+                    --- release_date = string.match(data,'<span class="mt2">时间:</span>([^\"]*) <span')
+                    --- uploader_name = string.match(data,'<span class="mt2">发布者:</span>([^\"]*) <span')
+                    downlink = string.match(data,'href = \'([^\"]*)\' +')
+                    assert(downlink)
+                    fileId = string.match(data,'var loaddown = \'([^\"]*)\';')
+                    fileId = string.match(fileId,'([^\"]*)\';')
+                end)
+                if not lzReq then
+                    Log:Error('解析失败')
+                    callback {
+                        status = false,
+                        code = -1
+                    }
+                    return
+                end
+                local redict_rtncode,final_link = getRedirect(downlink..fileId)
+                if redict_rtncode ~= 302 then
+                    Log:Error('无法访问蓝奏云提供的跳转链接，请检查模块更新。')
+                    Log:Error('跳转链接: %s, 错误返回: %s',downlink,redict_rtncode)
+                    callback {
+                        status = false,
+                        code = -1
+                    }
+                    return
+                end
+                Cloud.Protocol:Fetch(final_link):get(final_link,payload,callback)
+                break
+            end
+        else
+            Log:Warn('正在使用的蓝奏云链接似乎失效...')
+            if tryingNum == #self.servers then
+                Log:Error('所有蓝奏云服务器都无法访问，请检查模块更新。')
+                callback {
+                    status = false,
+                    code = -1
+                }
+                return
+            end
+        end
     end
 end
 
@@ -149,6 +245,7 @@ end
 ---@param payload string 请求载荷
 ---@param callback function 回调函数
 function Cloud.Protocol.Http:get(url,payload,callback)
+    Log:Debug('下载: %s',url)
     local proInfo = {
         recording = {},
         call_times = 0,
@@ -208,7 +305,7 @@ function Cloud.Protocol.Http:get(url,payload,callback)
         noprogress = false,
         ssl_verifypeer = false,
         ssl_verifyhost = false,
-        timeout = 60
+        timeout = 15
     }
     local msf = easy:perform()
     io.write(string.format('\r √ Completed, [%s] %sM/s (%sM).',string.rep('▰',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
