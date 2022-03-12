@@ -35,7 +35,7 @@ Cloud = {
             prefix = { 'ftp://' }
         }
     },
-    UA = "Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Mobile Safari/537.36 Edg/99.0.1150.30"
+    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36 Edg/99.0.1150.36"
 }
 
 
@@ -69,15 +69,16 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
         local redic = curl.easy {
             url = url,
             httpheader = {
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Encoding: gzip, deflate',
-                'Accept-Language: zh-CN,zh;q=0.9',
+                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
                 'Cache-Control: no-cache',
                 'Connection: keep-alive',
                 'Pragma: no-cache',
                 'Upgrade-Insecure-Requests: 1'
             },
-            ssl_verifypeer = false
+            accept_encoding = 'gzip, deflate, br',
+            ssl_verifypeer = false,
+            ssl_verifyhost = false
         }
         redic:perform()
         local final_link = redic:getinfo_redirect_url()
@@ -92,22 +93,21 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
         Log:Debug('使用域名: %s',link)
         Log:Debug('正在解析分享: %s',shareId)
         local baseUrl = string.format('https://www.%s/',link)
-        local url = string.format('%stp/%s',baseUrl,shareId)
+        local url = string.format('%s%s',baseUrl,shareId)
         local data = ''
 
         --- Get lanzou page, get informations.
         local page = curl.easy {
             url = url,
             httpheader = {
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Encoding: gzip, deflate, sdch, br',
-                'Accept-Language: zh-CN,zh;q=0.8'
+                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6'
             },
             writefunction = function (str)
                 data = data..str
             end,
             useragent = Cloud.UA,
-            accept_encoding = 'gzip,deflate',
+            accept_encoding = 'gzip, deflate, br',
             ssl_verifypeer = false,
             ssl_verifyhost = false,
             timeout = 15
@@ -115,7 +115,6 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
         page:perform()
         local page_rtncode = page:getinfo_response_code()
         page:close()
-
         --- Check page(server) status.
         if page_rtncode == 200 then
 
@@ -138,9 +137,9 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
                     return
                 end
                 --- Get file over passcode.
-                local sign = string.match(data,'\'sign\':\'([^\"]*)\',\'p\':pwd')
+                local sign = string.match(data,'action=downprocess&sign=([^\"]*)&p=')
                 if not sign then
-                    Log:Error('SIGN获取失败')
+                    Log:Error('Sign获取失败')
                     callback {
                         status = false,
                         code = -1
@@ -153,11 +152,15 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
                 form:add_content('p',passwd)
                 local response = ''
                 local ajaxm = curl.easy {
-                    url = string.format('https://wwa.%s/ajaxm.php',link),
+                    url = string.format('%sajaxm.php',baseUrl),
                     httpheader = {
-                        'Referer: '..baseUrl,
-                        'Accept-Language:zh-CN,zh;q=0.9'
+                        'Accept: application/json, text/javascript, */*',
+                        'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+                        string.format('Referer: %s%s',baseUrl,shareId),
+                        'X-Requested-With: XMLHttpRequest'
+
                     },
+                    accept_encoding = 'gzip, deflate, br',
                     post = true,
                     httppost = form,
                     writefunction = function (str)
@@ -258,12 +261,11 @@ function Cloud.Protocol.Http:get(url,payload,callback)
         completed = false
     }
     payload.ua = payload.ua or Cloud.UA
-    payload.accept_encoding = payload.accept_encoding or "gzip,deflate"
     local easy = curl.easy {
         url = url,
         httpheader = payload.header,
         useragent = payload.ua,
-        accept_encoding = payload.accept_encoding,
+        accept_encoding = 'gzip, deflate, br',
         writefunction = payload.writefunction,
         progressfunction = function (size,downloaded,uks_1,uks_2)
             local Rec = proInfo
