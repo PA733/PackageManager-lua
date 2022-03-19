@@ -4,27 +4,31 @@
 
 --]] ----------------------------------------
 
-local function stdpath(path)
-    local a = string.reverse(path)
-    if string.find(a,'\\')==1 then
-        return string.sub(path,1,string.len(path)-1)
-    end
+require "native-type-helper"
+local lfs = require("lfs")
+local fs = {
+    __VERSION = 100
+}
+
+local function directory(path)
+    path = path .. '\\'
+    path = string.gsub(path,'/','\\')
+    path = string.gsub(path,'\\\\','\\')
     return path
 end
 
-local lfs = require("lfs")
-local fs = {}
-
 function fs:getCurrentPath()
-    return lfs.currentdir()..'\\'
+    return directory(lfs.currentdir())
 end
 
 function fs:getDirectoryList(path)
     local list = {}
+    path = path or fs:getCurrentPath()
+    path = directory(path)
     for file in lfs.dir(path) do
         if file~='.' and file~='..' then
             list[#list+1] = path..file
-            local attr = lfs.attributes(stdpath(path))
+            local attr = lfs.attributes(path)
             if attr and attr.mode=='directory' then
                 list = Array.Concat(list,fs:getDirectoryList(path..file..'\\'))
             end
@@ -37,6 +41,7 @@ function fs:writeTo(path,content)
 	local file = assert(io.open(path, "wb"))
 	file:write(content)
 	file:close()
+    return true
 end
 
 function fs:readFrom(path)
@@ -47,42 +52,32 @@ function fs:readFrom(path)
 end
 
 function fs:mkdir(path)
-    if not string.find(path,'\\') then
-        return lfs.mkdir(path)
-    else
-        local ms = string.split(path,'\\')
-        table.remove(ms,1) -- rm first "\"
-        local npath = ""
-        for i,path_t in pairs(ms) do
-            npath = npath..'\\'..path_t
-            lfs.mkdir(npath)
-        end
+    path = directory(path)
+    local dirs = string.split(path,'\\')
+    for k,v in pairs(dirs) do
+        lfs.mkdir(table.concat(dirs,'\\',1,k)..'\\')
     end
+    return true
 end
 
 function fs:rmdir(path)
-    return lfs.rmdir(path)
+    return lfs.rmdir(directory(path)..'\\')
 end
 
 function fs:getFileSize(path)
-    local attr = lfs.attributes(path)
-    return attr.size
+    return lfs.attributes(path).size
 end
 
 function fs:getType(path)
-    local attr = lfs.attributes(path)
-    return attr.mode
+    return lfs.attributes(path).mode
 end
 
 function fs:isExist(path)
-    local attr = lfs.attributes(stdpath(path))
-    return attr ~= nil
+    return lfs.attributes(path) ~= nil
 end
 
 function fs:isSame(path1,path2)
-    local a = fs:readFrom(path1)
-    local b = fs:readFrom(path2)
-    return a == b
+    return fs:readFrom(path1) == fs:readFrom(path2)
 end
 
 function fs:copy(to_path,from_path)
