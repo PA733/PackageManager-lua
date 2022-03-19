@@ -52,7 +52,10 @@ function Command:register(name,description,callback,hidden)
     self.Argument.__index = self.Argument
     self.Switch.__index = self.Switch
     self.PreText.__index = self.PreText
-    _cmds[name] = origin
+    _cmds[#_cmds+1] = {
+        name = name,
+        base = origin
+    }
     Log:Debug('Registering command: %s',name)
     return origin
 end
@@ -228,28 +231,40 @@ end
 ---@param name string
 ---@return Command
 function CommandManager:getCommand(name)
-    return _cmds[name]
+    for i,da in pairs(_cmds) do
+        if da.name == name then
+            return _cmds[i].base
+        end
+    end
+    return nil
 end
 
 --- 打印一个命令的帮助信息
----@param whatCmd string
-function CommandManager.Helper:printHelp(whatCmd)
+---@param command string 可选，需要打印的指令名，留空打印所有。
+function CommandManager.Helper:printHelp(command)
     local m
-    if not whatCmd then
-        whatCmd = _cmds
+    if not command then
+        command = _cmds
         m = '[options]'
     else
-        local tCmd = _cmds[whatCmd]
-        if not tCmd or tCmd.hidden then
+        local cmd = CommandManager:getCommand(command)
+        if not cmd or cmd.hidden then
             Log:Error('不存在的指令！')
             return
         end
-        m = whatCmd
-        whatCmd = { [whatCmd] = tCmd }
+        m = command
+        command = {
+            {
+                name = command,
+                base = cmd
+            }
+        }
     end
     Log:Info('Usage: %s %s --[arguments|switches] ...',Command._prefix,m)
     Log:Info('Available options are:')
-    for name,res in pairs(whatCmd) do
+    for i,da in pairs(command) do
+        local name = da.name
+        local res = da.base
         if not res.hidden then
             local pt = ''
             local pret = res.PreText
@@ -259,7 +274,7 @@ function CommandManager.Helper:printHelp(whatCmd)
                 else
                     pt = string.format(' [%s]',pret.data.name)
                 end
-                
+
             end
             Log:Info('      %s%s\t%s',name,pt,res.description)
             for aname,ares in pairs(res.Argument.data) do

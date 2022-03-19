@@ -164,4 +164,6 @@ for k,v in pairs(arg) do
 end
 if next(call_cmds) then
     CommandManager:execute(call_cmds)
+else
+    Log:Error('没有命令键入，如需帮助请输入 "help"。',LPM.Version:getStr())
 end
