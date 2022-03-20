@@ -7,7 +7,7 @@
 require "native-type-helper"
 local lfs = require("lfs")
 
-local fs = {}
+Fs = {}
 local function directory(path)
     path = path .. '\\'
     path = string.gsub(path,'/','\\')
@@ -15,41 +15,41 @@ local function directory(path)
     return path
 end
 
-function fs:getCurrentPath()
+function Fs:getCurrentPath()
     return directory(lfs.currentdir())
 end
 
-function fs:getDirectoryList(path)
+function Fs:getDirectoryList(path)
     local list = {}
-    path = path or fs:getCurrentPath()
+    path = path or Fs:getCurrentPath()
     path = directory(path)
     for file in lfs.dir(path) do
         if file~='.' and file~='..' then
             list[#list+1] = path..file
             local attr = lfs.attributes(path)
             if attr and attr.mode=='directory' then
-                list = Array.Concat(list,fs:getDirectoryList(path..file..'\\'))
+                list = Array.Concat(list,Fs:getDirectoryList(path..file..'\\'))
             end
         end
     end
     return list
 end
 
-function fs:writeTo(path,content)
+function Fs:writeTo(path,content)
 	local file = assert(io.open(path, "wb"))
 	file:write(content)
 	file:close()
     return true
 end
 
-function fs:readFrom(path)
+function Fs:readFrom(path)
     local file = assert(io.open(path, "rb"))
     local content = file:read("*all")
     file:close()
     return content
 end
 
-function fs:mkdir(path)
+function Fs:mkdir(path)
     path = directory(path)
     local dirs = string.split(path,'\\')
     for k,v in pairs(dirs) do
@@ -58,28 +58,28 @@ function fs:mkdir(path)
     return true
 end
 
-function fs:rmdir(path)
+function Fs:rmdir(path)
     return lfs.rmdir(directory(path)..'\\')
 end
 
-function fs:getFileSize(path)
+function Fs:getFileSize(path)
     return lfs.attributes(path).size
 end
 
-function fs:getType(path)
+function Fs:getType(path)
     return lfs.attributes(path).mode
 end
 
-function fs:isExist(path)
+function Fs:isExist(path)
     return lfs.attributes(path) ~= nil
 end
 
-function fs:isSame(path1,path2)
-    return fs:readFrom(path1) == fs:readFrom(path2)
+function Fs:isSame(path1,path2)
+    return Fs:readFrom(path1) == Fs:readFrom(path2)
 end
 
-function fs:copy(to_path,from_path)
-    fs:writeTo(to_path,fs:readFrom(from_path))
+function Fs:copy(to_path,from_path)
+    Fs:writeTo(to_path,Fs:readFrom(from_path))
 end
 
-return fs
+return Fs

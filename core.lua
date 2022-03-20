@@ -4,32 +4,36 @@
 
 --]] ----------------------------------------
 
-local JSON = require "dkjson"
-local fs = require "filesystem"
+require "JSON"
+require "filesystem"
 
 Repo = {
     loaded = {}
 }
 
+local function fetch(uuid)
+    for i,res in pairs(Repo.loaded) do
+        if res.uuid == uuid then
+            return i
+        end
+    end
+    return nil
+end
+
 function Repo:init()
-    self.loaded = JSON.decode(fs:readFrom('repo.json')).repo
+    self.loaded = JSON.parse(Fs:readFrom('repo.json')).repo
     return true
 end
 
 function Repo:save()
-    fs:writeTo('repo.json',JSON.encode {
+    Fs:writeTo('repo.json',JSON.stringify {
         format_version = Settings.Version.get(),
         repo = self.loaded
     })
 end
 
 function Repo:isExist(uuid)
-    for i,res in pairs(self.loaded) do
-        if res.uuid == uuid then
-            return true
-        end
-    end
-    return false
+    return fetch(uuid) ~= nil
 end
 
 function Repo:add(uuid,name,site,branch,ownfile)
@@ -69,9 +73,17 @@ end
 function Repo:getAll()
     local rtn = {}
     for a,b in pairs(self.loaded) do
-        rtn[#rtn+1] = b.name
+        rtn[#rtn+1] = b.uuid
     end
     return rtn
+end
+
+function Repo:getName(uuid)
+    local pos = fetch(uuid)
+    if pos then
+        return self.loaded[pos].name
+    end
+    return nil
 end
 
 Software = {}

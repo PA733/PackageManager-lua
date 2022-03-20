@@ -10,9 +10,8 @@ require "native-type-helper"
 require "JSON"
 require "settings"
 require "cmdline"
-require "package-manager"
+require "core"
 require "cloud"
-require "settings"
 require "version"
 
 Fs = require "filesystem"
@@ -21,6 +20,7 @@ Log = Logger:new('Main')
 --------------------- Initialization ---------------------
 
 Settings:init()
+Repo:init()
 
 ----------------------------------------------------------
 
@@ -72,8 +72,14 @@ PurgeCommand.Switch:add('yes','跳过清除确认')
 -- [CMD] Repo
 
 local RepoCommand = Command:register('repo','管理仓库',function (dict)
-    if dict.args['switch'] then
-
+    if dict.args['set'] then
+        local uuid = dict.args['set']
+        if Repo:isExist(uuid) then
+            Settings:set('repo.use',uuid)
+            Log:Info('成功设置 %s 为主要仓库',Repo:getName(uuid))
+        else
+            Log:Error('无法通过UUID（%s）找到仓库，请检查输入',uuid)
+        end
     end
     if dict.switch['check-all'] then
         
@@ -82,14 +88,30 @@ local RepoCommand = Command:register('repo','管理仓库',function (dict)
         
     end
     if dict.switch['list'] then
+        local list = Repo:getAll()
+        local using = Settings:get('repo.use')
+        Log:Info('已装载 %s 个仓库',#list)
+        for n,uuid in pairs(list) do
+            local a = Repo:getName(uuid)
+            if uuid == using then
+                a = a .. '（Using）'
+            end
+            Log:Info('%s. %s - [%s]',n,a,uuid)
+        end
+    end
+    if dict.args['set-branch'] then
+        
+    end
+    if dict.args['add-branch'] then
         
     end
 end)
 RepoCommand.Switch:add('check-all','检查配置的所有源')
 RepoCommand.Switch:add('update','更新源')
 RepoCommand.Switch:add('list','列出所有源')
-RepoCommand.Argument:add('switch','另外选择一个源','string',true)
+RepoCommand.Argument:add('set','另外选择一个源','string',true)
 RepoCommand.Argument:add('set-branch','为当前源指定（一些）分支','table',true)
+RepoCommand.Argument:add('add-branch','为当前源添加（一些）分支','table',true)
 
 -- [CMD] Pack
 

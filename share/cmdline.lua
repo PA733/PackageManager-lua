@@ -56,7 +56,7 @@ function Command:register(name,description,callback,hidden)
         name = name,
         base = origin
     }
-    Log:Debug('Registering command: %s',name)
+    -- Log:Debug('Registering command: %s',name)
     return origin
 end
 
