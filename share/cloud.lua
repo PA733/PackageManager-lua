@@ -39,6 +39,15 @@ Cloud = {
     UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36 Edg/99.0.1150.36"
 }
 
+function Cloud.Protocol:getAll()
+    local rtn = {}
+    for k,v in pairs(self) do
+        if type(v) == 'table' then
+            rtn[#rtn+1] = k
+        end
+    end
+    return rtn
+end
 
 --- 选择合适的下载协议
 ---@param url string

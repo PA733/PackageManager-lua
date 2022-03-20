@@ -113,28 +113,18 @@ RepoCommand.Argument:add('set','另外选择一个源','string',true)
 RepoCommand.Argument:add('set-branch','为当前源指定（一些）分支','table',true)
 RepoCommand.Argument:add('add-branch','为当前源添加（一些）分支','table',true)
 
--- [CMD] Pack
-
-local PackCommand = Command:register('pack','打包器',function (dict)
-    
-end)
-
--- [CMD] Config
-
-local ConfigCommand = Command:register('config','配置LPM',function (dict)
-    
-end)
-ConfigCommand.PreText:set('cfg')
-ConfigCommand.Switch:add('reset','重设为默认值')
-ConfigCommand.Argument:add('update','更新该项为...','string',true)
-
 -- [CMD] Cloud Protocol
 
 local CloudCommand = Command:register('cloud-protocol','下载组件',function (dict)
-
+    if dict.switch['list'] then
+        local list = Cloud.Protocol:getAll()
+        Log:Info('已装载 %s 个下载组件',#list)
+        for k,v in pairs(list) do
+            Log:Info('%s. %s',k,v)
+        end
+    end
 end)
 CloudCommand.Switch:add('list','列出所有下载组件')
-CloudCommand.Switch:add('test','测试并选中最优下载组件')
 
 --- Developer Mode Actions
 
