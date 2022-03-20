@@ -1,0 +1,14 @@
+{
+    "format_version": [ 1, 0, 0 ],
+    "repo": [
+        {
+            "uuid": "e725ab8b-d5a4-47a0-afb0-242d8e0c7461",
+            "name": "Github TestRepo",
+            "site": "https://raw.githubusercontent.com/Redbeanw44602/TestRepo/main/",
+            "branch": [
+                "*"
+            ],
+            "self": "self.json"
+        }
+    ]
+}

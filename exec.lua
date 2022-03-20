@@ -7,70 +7,24 @@
 require "__init__"
 require "logger"
 require "native-type-helper"
+require "JSON"
+require "settings"
 require "cmdline"
 require "package-manager"
 require "cloud"
+require "settings"
+require "version"
 
 Fs = require "filesystem"
 Log = Logger:new('Main')
 
-JSON = {
-	_base = require('dkjson')
-}
+--------------------- Initialization ---------------------
 
-LPM = {
-    Version = {
-        major = 1,
-        minor = 0,
-        revision = 0
-    }
-}
+Settings:init()
 
-function LPM.Version:getNum()
-    return self.major*100 + self.minor*10 + self.revision
-end
+----------------------------------------------------------
 
-function LPM.Version:getStr()
-    return string.format('%s.%s%s',self.major,self.minor,self.revision)
-end
-
-function JSON.parse(str)
-    local stat,rtn = pcall(JSON._base.decode,str)
-    if stat then
-        return rtn
-    end
-    Logger:Debug('Could not parse JSON, content = %s',str)
-    return nil
-end
-function JSON.stringify(object)
-    local stat,rtn = pcall(JSON._base.encode,object)
-    if stat then
-        return rtn
-    end
-    Logger:Debug('Could not stringify object.',object)
-    return nil
-end
-
---- Load config
-
-local cfg = {
-    version = LPM.Version:getNum(),
-    output = {
-        noColor = false
-    }
-}
-
-local loadcfg = JSON.parse(Fs:readFrom('config.json'))
-for n,path in pairs(table.getAllPaths(cfg,false)) do
-    local m = table.getKey(loadcfg,path)
-    if m ~= nil then
-        table.setKey(cfg,path,m)
-    else
-        Log:Error('配置文件丢失 %s, 已使用默认值。',path)
-    end
-end
-
-if cfg.output.noColor then
+if Settings:get('output.noColor') then
     Logger.setNoColor()
 end
 
@@ -118,12 +72,24 @@ PurgeCommand.Switch:add('yes','跳过清除确认')
 -- [CMD] Repo
 
 local RepoCommand = Command:register('repo','管理仓库',function (dict)
-    
+    if dict.args['switch'] then
+
+    end
+    if dict.switch['check-all'] then
+        
+    end
+    if dict.switch['update'] then
+        
+    end
+    if dict.switch['list'] then
+        
+    end
 end)
 RepoCommand.Switch:add('check-all','检查配置的所有源')
 RepoCommand.Switch:add('update','更新源')
 RepoCommand.Switch:add('list','列出所有源')
-RepoCommand.Argument:add('switch','选择源','string',true)
+RepoCommand.Argument:add('switch','另外选择一个源','string',true)
+RepoCommand.Argument:add('set-branch','为当前源指定（一些）分支','table',true)
 
 -- [CMD] Pack
 
@@ -165,5 +131,5 @@ end
 if next(call_cmds) then
     CommandManager:execute(call_cmds)
 else
-    Log:Error('没有命令键入，如需帮助请输入 "help"。',LPM.Version:getStr())
+    Log:Error('没有命令键入，如需帮助请输入 "help"。')
 end

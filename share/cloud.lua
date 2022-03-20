@@ -5,7 +5,8 @@
 --]] ----------------------------------------
 
 local curl = require "cURL"
-local JSON = require "dkjson"
+
+require "JSON"
 require "logger"
 
 local Log = Logger:new('Cloud')
@@ -183,9 +184,9 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
                     }
                     return
                 end
-                local rtn_stat,rtn_cont = pcall(JSON.decode,response)
-                if rtn_stat and rtn_cont.zt == 1 then
-                    local rtnCode,downUrl = getRedirect(string.format('%s/file/%s',rtn_cont.dom,rtn_cont.url))
+                local rtn = JSON.parse(response)
+                if rtn and rtn.zt == 1 then
+                    local rtnCode,downUrl = getRedirect(string.format('%s/file/%s',rtn.dom,rtn.url))
                     Cloud.Protocol:Fetch(downUrl):get(downUrl,payload,callback)
                 else
                     Log:Error('蓝奏云返回了错误的信息，获取失败。')

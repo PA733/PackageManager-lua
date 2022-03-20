@@ -6,10 +6,8 @@
 
 require "native-type-helper"
 local lfs = require("lfs")
-local fs = {
-    __VERSION = 100
-}
 
+local fs = {}
 local function directory(path)
     path = path .. '\\'
     path = string.gsub(path,'/','\\')
