@@ -36,15 +36,14 @@ function Repo:isExist(uuid)
     return fetch(uuid) ~= nil
 end
 
-function Repo:add(uuid,name,site,ownfile)
+function Repo:add(uuid,name,metafile)
     if self:isExist(uuid) then
         return false
     end
     self.loaded[#self.loaded+1] = {
         uuid = uuid,
         name = name,
-        site = site,
-        ['self'] = ownfile
+        metafile = metafile,
     }
     self:save()
     return true
