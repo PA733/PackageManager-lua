@@ -25,7 +25,7 @@ Settings = {
 }
 
 function Settings:init()
-    local loadcfg = JSON.parse(Fs:readFrom('config.json'))
+    local loadcfg = JSON.parse(Fs:readFrom('data/config.json'))
     for n,path in pairs(table.getAllPaths(cfg,false)) do
         local m = table.getKey(loadcfg,path)
         if m ~= nil then

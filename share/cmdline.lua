@@ -42,7 +42,7 @@ function Command:register(name,description,callback,hidden)
                 used = false
             }
         },
-        handler = callback
+        handler = Command.Handler[name] or function () end
     }
     setmetatable(origin,self)
     setmetatable(origin.Argument,self.Argument)
