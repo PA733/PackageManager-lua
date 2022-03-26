@@ -85,4 +85,12 @@ function Repo:getName(uuid)
     return nil
 end
 
+function Repo:getLink(uuid)
+    local pos = fetch(uuid)
+    if pos then
+        return self.loaded[pos].metafile
+    end
+    return nil
+end
+
 return Repo

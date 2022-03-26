@@ -66,7 +66,9 @@ Command.Handler = {
                 Log:Error('无法通过UUID（%s）找到仓库，请检查输入',uuid)
             end
         elseif dict.switch['update'] then
-            Log:Info('目前正在使用仓库')
+            Log:Info('目前正在使用仓库 %s',Repo:getName(repo_using))
+            Log:Info('正在获取仓库摘要信息...')
+            local link = Repo:getLink(repo_using)
         elseif dict.switch['list'] then
             Log:Info('已装载 %s 个仓库',#repo_list)
             for n,uuid in pairs(repo_list) do
