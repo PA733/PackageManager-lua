@@ -26,7 +26,7 @@ function Repo:init()
 end
 
 function Repo:save()
-    Fs:writeTo('repo.json',JSON.stringify {
+    Fs:writeTo('data/repo.json',JSON.stringify {
         format_version = Settings.Version.get(),
         repo = self.loaded
     })
@@ -36,7 +36,7 @@ function Repo:isExist(uuid)
     return fetch(uuid) ~= nil
 end
 
-function Repo:add(uuid,name,site,branch,ownfile)
+function Repo:add(uuid,name,site,ownfile)
     if self:isExist(uuid) then
         return false
     end
@@ -44,7 +44,6 @@ function Repo:add(uuid,name,site,branch,ownfile)
         uuid = uuid,
         name = name,
         site = site,
-        branch = branch,
         ['self'] = ownfile
     }
     self:save()

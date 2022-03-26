@@ -55,6 +55,8 @@ Command.Handler = {
     end,
 
     repo = function (dict)
+        local repo_list = Repo:getAll()
+        local repo_using = Settings:get('repo.use')
         if dict.args['set'] then
             local uuid = dict.args['set']
             if Repo:isExist(uuid) then
@@ -64,20 +66,16 @@ Command.Handler = {
                 Log:Error('无法通过UUID（%s）找到仓库，请检查输入',uuid)
             end
         elseif dict.switch['update'] then
+            Log:Info('目前正在使用仓库')
         elseif dict.switch['list'] then
-            local list = Repo:getAll()
-            local using = Settings:get('repo.use')
-            Log:Info('已装载 %s 个仓库',#list)
-            for n,uuid in pairs(list) do
+            Log:Info('已装载 %s 个仓库',#repo_list)
+            for n,uuid in pairs(repo_list) do
                 local a = Repo:getName(uuid)
-                if uuid == using then
+                if uuid == repo_using then
                     a = a .. '（Using）'
                 end
                 Log:Info('%s. %s - [%s]',n,a,uuid)
             end
-        elseif dict.args['set-branch'] then
-        elseif dict.args['add-branch'] then
-
         end
     end,
 
@@ -109,8 +107,6 @@ CloudCommand.Switch:add('list','列出所有下载组件')
 RepoCommand.Switch:add('update','更新源')
 RepoCommand.Switch:add('list','列出所有源')
 RepoCommand.Argument:add('set','另外选择一个源','string',true)
-RepoCommand.Argument:add('set-branch','为当前源指定（一些）分支','table',true)
-RepoCommand.Argument:add('add-branch','为当前源添加（一些）分支','table',true)
 PurgeCommand.PreText:set('name')
 PurgeCommand.Switch:add('yes','跳过清除确认')
 RemoveCommand.PreText:set('name')
