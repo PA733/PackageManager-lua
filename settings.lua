@@ -61,7 +61,7 @@ function Settings:save()
         Log:Error('尝试在配置项初始化前保存')
         return
     end
-    Fs:writeTo('config.json',JSON.stringify(cfg))
+    Fs:writeTo('data/config.json',JSON.stringify(cfg))
     return true
 end
 

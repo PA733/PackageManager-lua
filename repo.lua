@@ -21,7 +21,7 @@ local function fetch(uuid)
 end
 
 function Repo:init()
-    self.loaded = JSON.parse(Fs:readFrom('repo.json')).repo
+    self.loaded = JSON.parse(Fs:readFrom('data/repo.json')).repo
     return true
 end
 
@@ -86,6 +86,4 @@ function Repo:getName(uuid)
     return nil
 end
 
-Software = {}
-
-return Repo,Software
+return Repo
