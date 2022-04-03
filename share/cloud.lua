@@ -280,7 +280,7 @@ function Cloud.Protocol.Http:get(url,payload,callback)
         max_size = 0,
         steps = { '○','◔','◑','◕','●' },
         step = 1,
-        progress = string.rep('▱',20),
+        progress = string.rep('━',20),
         size_vaild = false,
         completed = false
     }
@@ -310,7 +310,7 @@ function Cloud.Protocol.Http:get(url,payload,callback)
                 --- calc progress
                 if size ~= 0 then
                     Rec.size_vaild = true
-                    Rec.progress = string.gsub(string.rep('▱',20),'▱','▰',math.floor(20*(downloaded/size)))
+                    Rec.progress = string.gsub(string.rep('—',20),'—','━',math.floor(20*(downloaded/size)))
                 end
             end
             Rec.recording[time] = downloaded
@@ -342,10 +342,6 @@ function Cloud.Protocol.Http:get(url,payload,callback)
     }
     easy:close()
 
-end
-
-function Cloud.Protocol.Ftp:get()
-    -- TODO.
 end
 
 return Cloud
