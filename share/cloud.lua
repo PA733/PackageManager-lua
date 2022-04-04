@@ -27,9 +27,9 @@ Cloud = {
         ['Lanzou'] = {
             prefix = { 'lanzou://' },
             servers = {
-                'lanzoux.com',
                 'lanzoui.com',
                 'lanzouf.com',
+                'lanzoux.com',
                 'lanzous.com'
             }
         }
@@ -37,7 +37,7 @@ Cloud = {
         ---     prefix = { 'ftp://' }
         --- }
     },
-    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36 Edg/99.0.1150.36"
+    UA = "Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36"
 }
 
 local function fetch(url)
@@ -64,21 +64,38 @@ function Cloud.Protocol:getAll()
     return rtn
 end
 
-function Cloud:NewTask(url,payload,callback)
+function Cloud:NewTask(dict)
     --- URL:
     --- (Http) https://example.com/a.zip
     --- (Lanzou) lanzou://iv04c0128t9a:pwd=af1d
-    Log:Error('正在解析无法识别的URL：%s',url)
-    local name,protocol = fetch(url)
-    if name == 'Http' then
-        protocol:get(url,payload,callback)
-    elseif name == 'Lanzou' then
-        local tmp = string.split(url,':')
-        local shareId = string.sub(tmp[2],3)
-        local passwd = string.split(tmp[3],'=')
-        if passwd then passwd = passwd[2] end
-        protocol:get(shareId,passwd,payload,callback)
+    --- payload:
+    --- ua, header, writefunction
+    local name,protocol = fetch(dict.url)
+    local rtn
+    if dict.payload then
+        for k,v in pairs(dict.payload) do
+            dict.k = v
+        end
+        dict.payload = nil
     end
+    if name == 'Http' then
+        rtn = protocol:get(dict.url,dict)
+    elseif name == 'Lanzou' then
+        local tmp = string.split(dict.url,':')
+        local shareId = string.sub(tmp[2],3)
+        if string.sub(shareId,-1) == '/' then
+            shareId = string.sub(shareId,1,string.len(shareId)-1)
+        end
+        local passwd
+        if tmp[3] then
+            passwd = string.split(tmp[3],'=')
+            if passwd then passwd = passwd[2] end 
+        end
+        rtn = protocol:get(shareId,passwd,dict)
+    else
+        Log:Error('正在解析无法识别的URL：%s',dict.url)
+    end
+    return rtn
 end
 
 --- 蓝奏云解析下载
@@ -88,8 +105,7 @@ end
 ---@param shareId string 分享ID，即分享链接末部分=
 ---@param passwd string 密码（如果有），可以为nil
 ---@param payload table 请求载荷
----@param callback function 回调函数
-function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
+function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
     local L = Logger:new('Lanzou')
     local function getRedirect(url)
         local redic = curl.easy {
@@ -116,7 +132,7 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
     for tryingNum,link in pairs(self.servers) do
 
         --- Init.
-        local baseUrl = string.format('https://www.%s/',link)
+        local baseUrl = string.format('https://www.%s/tp/',link)
         local url = string.format('%s%s',baseUrl,shareId)
         local data = ''
 
@@ -144,31 +160,28 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
 
             if string.find(data,'文件取消分享了') then
                 L:Error('该文件分享链接已失效')
-                callback {
+                return {
                     status = false,
                     code = -1
                 }
-                return
             end
 
             if string.find(data,'pwd') then
                 if not passwd then
                     L:Error('提取码错误')
-                    callback {
+                    return {
                         status = false,
                         code = -1
                     }
-                    return
                 end
                 --- Get file over passcode.
                 local sign = string.match(data,'action=downprocess&sign=([^\"]*)&p=')
                 if not sign then
                     L:Error('Sign获取失败')
-                    callback {
+                    return {
                         status = false,
                         code = -1
                     }
-                    return
                 end
                 local form = curl.form()
                 form:add_content('action','downprocess')
@@ -201,23 +214,24 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
                 form:free()
                 if ajax_rtncode ~= 200 then
                     L:Error('蓝奏云返回异常代码 %s，获取失败。',ajax_rtncode)
-                    callback {
+                    return {
                         status = false,
                         code = -1
                     }
-                    return
                 end
                 local rtn = JSON.parse(response)
                 if rtn and rtn.zt == 1 then
                     local rtnCode,downUrl = getRedirect(string.format('%s/file/%s',rtn.dom,rtn.url))
-                    Cloud:NewTask(downUrl,payload,callback)
+                    Cloud:NewTask {
+                        url = downUrl,
+                        payload = payload
+                    }
                 else
                     L:Error('蓝奏云返回了错误的信息，获取失败。')
-                    callback {
+                    return {
                         status = false,
                         code = -1
                     }
-                    return
                 end
                 break
             else
@@ -234,34 +248,33 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload,callback)
                 end)
                 if not lzReq then
                     L:Error('解析失败')
-                    callback {
+                    return {
                         status = false,
                         code = -1
                     }
-                    return
                 end
                 local redict_rtncode,final_link = getRedirect(downlink..fileId)
                 if redict_rtncode ~= 302 then
                     L:Error('无法访问蓝奏云提供的跳转链接，请检查模块更新。')
                     L:Error('跳转链接: %s, 错误返回: %s',downlink,redict_rtncode)
-                    callback {
+                    return {
                         status = false,
                         code = -1
                     }
-                    return
                 end
-                Cloud:NewTask(final_link,payload,callback)
-                break
+                return Cloud:NewTask {
+                    url = final_link,
+                    payload = payload
+                }
             end
         else
-            L:Warn('正在使用的蓝奏云链接似乎失效...')
+            L:Warn('%s 似乎失效...',link)
             if tryingNum == #self.servers then
                 L:Error('所有蓝奏云服务器都无法访问，请检查模块更新。')
-                callback {
+                return {
                     status = false,
                     code = -1
                 }
-                return
             end
         end
     end
@@ -270,8 +283,7 @@ end
 --- HTTP（s）下载
 ---@param url string 链接
 ---@param payload string 请求载荷
----@param callback function 回调函数
-function Cloud.Protocol.Http:get(url,payload,callback)
+function Cloud.Protocol.Http:get(url,payload)
     Log:Debug('下载: %s',url)
     local proInfo = {
         recording = {},
@@ -334,14 +346,14 @@ function Cloud.Protocol.Http:get(url,payload,callback)
         timeout = 15
     }
     local msf = easy:perform()
-    io.write(string.format('\r √ Completed, [%s] %sM/s (%sM).',string.rep('▰',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
-    callback {
-        status = toBool(msf),
-        code = msf:getinfo_response_code(),
+    io.write(string.format('\r √ Completed, [%s] %sM/s (%sM).',string.rep('━',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
+    local code = msf:getinfo_response_code()
+    easy:close()
+    return {
+        status = code == 200,
+        code = code,
         duration = msf:getinfo_total_time()
     }
-    easy:close()
-
 end
 
 return Cloud

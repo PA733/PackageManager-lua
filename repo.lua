@@ -6,6 +6,7 @@
 
 require "JSON"
 require "filesystem"
+require "version"
 
 Repo = {
     loaded = {}
@@ -27,7 +28,7 @@ end
 
 function Repo:save()
     Fs:writeTo('data/repo.json',JSON.stringify {
-        format_version = Settings.Version.get(),
+        format_version = Version:getNum(0),
         repo = self.loaded
     })
 end
@@ -36,7 +37,7 @@ function Repo:isExist(uuid)
     return fetch(uuid) ~= nil
 end
 
-function Repo:add(uuid,name,metafile)
+function Repo:add(uuid,name,metafile,isEnabled)
     if self:isExist(uuid) then
         return false
     end
@@ -44,9 +45,20 @@ function Repo:add(uuid,name,metafile)
         uuid = uuid,
         name = name,
         metafile = metafile,
+        enabled = isEnabled or false
     }
     self:save()
     return true
+end
+
+function Repo:setStatus(uuid,isEnabled)
+    local pos = fetch(uuid)
+    if pos then
+        self.loaded[pos].enabled = isEnabled
+        self:save()
+        return true
+    end
+    return false
 end
 
 function Repo:remove(name)

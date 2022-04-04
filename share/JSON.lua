@@ -7,16 +7,16 @@ function JSON.parse(str)
     if stat then
         return rtn
     end
-    Logger:Debug('Could not parse JSON, content = %s',str)
+    Logger:Error('Could not parse JSON, content = %s',str)
     return nil
 end
 
 function JSON.stringify(object)
-    local stat,rtn = pcall(base.encode,object)
+    local stat,rtn = pcall(base.encode,object,{ indent = true })
     if stat then
         return rtn
     end
-    Logger:Debug('Could not stringify object.',object)
+    Logger:Error('Could not stringify object.',object)
     return nil
 end
 

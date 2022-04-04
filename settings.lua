@@ -11,7 +11,7 @@ require "filesystem"
 
 local Log = Logger:new('Settings')
 local cfg = {
-    version = Version:getNum(),
+    version = Version:getNum(0),
     output = {
         noColor = false
     },

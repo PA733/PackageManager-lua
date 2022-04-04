@@ -25,7 +25,7 @@ Log = Logger:new('Main')
 -- |||||||||||||||||| Initialization |||||||||||||||||| --
 ----------------------------------------------------------
 
-LpmOrder = {}
+Order = {}
 Command = Parser() {
     name = 'lpm',
     description = '为 LiteLoader 打造的包管理程序。',
@@ -47,36 +47,65 @@ end
 -- ||||||||||||||||||||| Commands ||||||||||||||||||||| --
 ----------------------------------------------------------
 
-LpmOrder.Install = Command:command 'install'
+Order.Install = Command:command 'install'
   :summary '安装一个软件包'
-  :description '此命令将从目前选择的源中检索软件包，并尝试安装。'
-LpmOrder.Install:argument('name','软件包名称')
+  :description '此命令将从源中检索软件包，并尝试安装。'
+Order.Install:argument('name','软件包名称')
 
-LpmOrder.Update = Command:command 'update'
+Order.Update = Command:command 'update'
   :summary '执行升级操作'
   :description '此命令将先从仓库拉取最新软件包列表，然后检查本地已安装软件版本。'
 
-LpmOrder.Remove = Command:command 'remove'
+Order.Remove = Command:command 'remove'
   :summary '删除一个软件包'
   :description '此命令将删除指定软件包但不清除软件储存的数据。'
-LpmOrder.Remove:flag('-p --purge','同时清除数据（危险）。')
-LpmOrder.Remove:argument('name','软件包名称')
+Order.Remove:flag('-p --purge','同时清除数据（危险）。')
+Order.Remove:argument('name','软件包名称')
 
-LpmOrder.Purge = Command:command 'purge'
+Order.Purge = Command:command 'purge'
   :summary '清除指定软件的数据'
   :description '此命令将清除指定软件储存的数据，但不卸载该软件。'
-LpmOrder.Purge:argument('name','软件包名称')
+Order.Purge:argument('name','软件包名称')
 
-LpmOrder.AddRepo = Command:command 'add-repo'
+Order.AddRepo = Command:command 'add-repo'
   :summary '添加新仓库'
   :description '提供仓库描述文件链接以添加一个新仓库'
-  :action (function ()
-      
+  :action (function (dict)
+    local metafile = ''
+    local res = Cloud:NewTask {
+        url = dict.link,
+        writefunction = function (str)
+            metafile = metafile .. str
+        end
+    }
+    if res.status then
+        local parsed_file = JSON.parse(metafile)
+        if parsed_file then
+            if parsed_file.format_version == Version:getNum(1) then
+                if not Repo:isExist(parsed_file.identifier) then
+                    Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_enable))
+                    Log:Info('成功添加仓库 %s，标识符为 %s。',parsed_file.name,parsed_file.identifier)
+                    if not dict.no_enable then
+                        Repo:setStatus(parsed_file.identifier,false)
+                        -- update repo here.
+                    end
+                else
+                    Log:Error('该仓库已存在。')
+                end
+            else
+                Log:Error('描述文件版本与管理器不匹配。')
+            end
+        else
+            Log:Error('解析描述文件时出错。')
+        end
+    else
+        Log:Error('下载描述文件时出错。')
+    end
   end)
-LpmOrder.AddRepo:argument('link','仓库描述文件下载链接')
-LpmOrder.AddRepo:flag('--no-enable','仅添加仓库（跳过自动选中与更新）')
+Order.AddRepo:argument('link','仓库描述文件下载链接')
+Order.AddRepo:flag('--no-enable','仅添加仓库（跳过自动启用与更新）')
 
-LpmOrder.ListRepo = Command:command 'list-repo'
+Order.ListRepo = Command:command 'list-repo'
   :summary '列出所有仓库'
   :description '此命令将列出所有已配置的仓库。'
   :action (function (dict)
@@ -92,7 +121,7 @@ LpmOrder.ListRepo = Command:command 'list-repo'
     end
   end)
 
-LpmOrder.SetRepo = Command:command 'set-repo'
+Order.SetRepo = Command:command 'set-repo'
   :summary '设置默认仓库并更新软件列表'
   :description '此命令将设置一个已配置软件源并更新软件包列表。'
   :action (function (dict)
@@ -104,9 +133,9 @@ LpmOrder.SetRepo = Command:command 'set-repo'
         Log:Error('无法通过UUID（%s）找到仓库，请检查输入',uuid)
     end
   end)
-LpmOrder.SetRepo:argument('UUID','目标仓库的UUID。')
+Order.SetRepo:argument('UUID','目标仓库的UUID。')
 
-LpmOrder.ListProtocol = Command:command 'list-protocol'
+Order.ListProtocol = Command:command 'list-protocol'
   :summary '列出下载所有组件'
   :description '此命令将列出所有已安装的下载组件。'
   :action (function (dict)
