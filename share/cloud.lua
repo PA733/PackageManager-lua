@@ -64,6 +64,9 @@ function Cloud.Protocol:getAll()
     return rtn
 end
 
+--- 创建新任务
+---@param dict table 需提供 url, writefunction, 可选 ua, header。
+---@return table 结果
 function Cloud:NewTask(dict)
     --- URL:
     --- (Http) https://example.com/a.zip
@@ -160,28 +163,19 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
 
             if string.find(data,'文件取消分享了') then
                 L:Error('该文件分享链接已失效')
-                return {
-                    status = false,
-                    code = -1
-                }
+                return false
             end
 
             if string.find(data,'pwd') then
                 if not passwd then
                     L:Error('提取码错误')
-                    return {
-                        status = false,
-                        code = -1
-                    }
+                    return false
                 end
                 --- Get file over passcode.
                 local sign = string.match(data,'action=downprocess&sign=([^\"]*)&p=')
                 if not sign then
                     L:Error('Sign获取失败')
-                    return {
-                        status = false,
-                        code = -1
-                    }
+                    return false
                 end
                 local form = curl.form()
                 form:add_content('action','downprocess')
@@ -214,24 +208,18 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
                 form:free()
                 if ajax_rtncode ~= 200 then
                     L:Error('蓝奏云返回异常代码 %s，获取失败。',ajax_rtncode)
-                    return {
-                        status = false,
-                        code = -1
-                    }
+                    return false
                 end
                 local rtn = JSON.parse(response)
                 if rtn and rtn.zt == 1 then
                     local rtnCode,downUrl = getRedirect(string.format('%s/file/%s',rtn.dom,rtn.url))
-                    Cloud:NewTask {
+                    return Cloud:NewTask {
                         url = downUrl,
                         payload = payload
                     }
                 else
                     L:Error('蓝奏云返回了错误的信息，获取失败。')
-                    return {
-                        status = false,
-                        code = -1
-                    }
+                    return false
                 end
                 break
             else
@@ -248,19 +236,13 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
                 end)
                 if not lzReq then
                     L:Error('解析失败')
-                    return {
-                        status = false,
-                        code = -1
-                    }
+                    return false
                 end
                 local redict_rtncode,final_link = getRedirect(downlink..fileId)
                 if redict_rtncode ~= 302 then
                     L:Error('无法访问蓝奏云提供的跳转链接，请检查模块更新。')
                     L:Error('跳转链接: %s, 错误返回: %s',downlink,redict_rtncode)
-                    return {
-                        status = false,
-                        code = -1
-                    }
+                    return false
                 end
                 return Cloud:NewTask {
                     url = final_link,
@@ -271,10 +253,7 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
             L:Warn('%s 似乎失效...',link)
             if tryingNum == #self.servers then
                 L:Error('所有蓝奏云服务器都无法访问，请检查模块更新。')
-                return {
-                    status = false,
-                    code = -1
-                }
+                return false
             end
         end
     end
@@ -347,13 +326,8 @@ function Cloud.Protocol.Http:get(url,payload)
     }
     local msf = easy:perform()
     io.write(string.format('\r √ Completed, [%s] %sM/s (%sM).',string.rep('━',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
-    local code = msf:getinfo_response_code()
     easy:close()
-    return {
-        status = code == 200,
-        code = code,
-        duration = msf:getinfo_total_time()
-    }
+    return true
 end
 
 return Cloud

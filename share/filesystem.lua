@@ -21,15 +21,15 @@ end
 
 function Fs:getDirectoryList(path)
     local list = {}
-    path = path or Fs:getCurrentPath()
+    path = path or self:getCurrentPath()
     path = directory(path)
     for file in lfs.dir(path) do
         if file~='.' and file~='..' then
-            list[#list+1] = path..file
-            local attr = lfs.attributes(path)
+            local attr = lfs.attributes(path..file)
             if attr and attr.mode=='directory' then
-                list = Array.Concat(list,Fs:getDirectoryList(path..file..'\\'))
+                list = Array.Concat(list,self:getDirectoryList(path..file..'\\'))
             end
+            list[#list+1] = path..file
         end
     end
     return list
@@ -58,8 +58,17 @@ function Fs:mkdir(path)
     return true
 end
 
-function Fs:rmdir(path)
-    return lfs.rmdir(directory(path)..'\\')
+function Fs:rmdir(path,forceMode)
+    local m = lfs.rmdir(directory(path))
+    if m then
+       return true
+    elseif forceMode then
+        for a,tph in pairs(self:getDirectoryList(path)) do
+            os.remove(tph)
+        end
+        return self:rmdir(path)
+    end
+    return false
 end
 
 function Fs:getFileSize(path)

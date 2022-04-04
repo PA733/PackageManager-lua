@@ -1,1 +1,6 @@
-{"version":100,"repo":{"use":"e725ab8b-d5a4-47a0-afb0-242d8e0c7461"},"output":{"noColor":false}}
+{
+    "version": 100,
+    "output": {
+        "noColor": false
+    }
+}

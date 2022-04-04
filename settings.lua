@@ -14,9 +14,6 @@ local cfg = {
     version = Version:getNum(0),
     output = {
         noColor = false
-    },
-    repo = {
-        use = "e725ab8b-d5a4-47a0-afb0-242d8e0c7461"
     }
 }
 

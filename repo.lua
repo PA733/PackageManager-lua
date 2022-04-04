@@ -7,7 +7,10 @@
 require "JSON"
 require "filesystem"
 require "version"
+require "logger"
+require "cloud"
 
+local Log = Logger:new('Repo')
 Repo = {
     loaded = {}
 }
@@ -39,6 +42,7 @@ end
 
 function Repo:add(uuid,name,metafile,isEnabled)
     if self:isExist(uuid) then
+        Log:Error('该仓库与现有的某个仓库的UUID冲突，可能重复添加了？')
         return false
     end
     self.loaded[#self.loaded+1] = {
@@ -48,6 +52,7 @@ function Repo:add(uuid,name,metafile,isEnabled)
         enabled = isEnabled or false
     }
     self:save()
+    Fs:mkdir('data/repositories/'..uuid..'/classes')
     return true
 end
 
@@ -58,25 +63,19 @@ function Repo:setStatus(uuid,isEnabled)
         self:save()
         return true
     end
+    Log:Error('正在为一个不存在的仓库（%s）设定开关状态。',uuid)
     return false
 end
 
-function Repo:remove(name)
-    if not self:isExist(name) then
-        return false
-    end
-    local pos
-    for k,a in pairs(self.loaded) do
-        if a.name == name then
-            pos = k
-            break
-        end
-    end
+function Repo:remove(uuid)
+    local pos = fetch(uuid)
     if pos then
+        Fs:rmdir('data/repositories/'..uuid,true)
         table.remove(self.loaded,pos)
         self:save()
         return true
     end
+    Log:Error('正在删除一个不存在的仓库（%s）。',uuid)
     return false
 end
 
@@ -93,6 +92,7 @@ function Repo:getName(uuid)
     if pos then
         return self.loaded[pos].name
     end
+    Log:Error('正在获取一个不存在的仓库的名称（%s）',uuid)
     return nil
 end
 
@@ -101,7 +101,48 @@ function Repo:getLink(uuid)
     if pos then
         return self.loaded[pos].metafile
     end
+    Log:Error('正在获取一个不存在的自述文件链接（%s）',uuid)
     return nil
+end
+
+function Repo:getAllEnabled()
+    local rtn = {}
+    for pos,cont in pairs(self.loaded) do
+        if cont.enabled then
+            rtn[#rtn+1] = cont.uuid
+        end
+    end
+    return rtn
+end
+
+function Repo:update(uuid)
+    local repo = fetch(uuid)
+    Log:Info('正在更新仓库 %s ...',repo.name)
+    Log:Info('正在拉取描述文件...')
+    local result,text_result
+    result = Cloud:NewTask {
+        url = repo.metafile,
+        writefunction = function (str)
+            text_result = text_result .. str
+        end
+    }
+    if result then
+        Log:Error('描述文件下载失败！')
+        return false
+    end
+    local cond = JSON.parse(text_result)
+    if not cond then
+        Log:Error('描述文件解析失败！')
+        return false
+    end
+    if cond.format_version ~= Version:getNum(1) then
+        Log:Error('描述文件的版本与管理器不匹配！')
+        return false
+    end
+end
+
+function Repo:fetchSoftware(uuid,condition)
+    
 end
 
 return Repo

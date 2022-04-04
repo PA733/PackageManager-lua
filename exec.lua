@@ -78,19 +78,18 @@ Order.AddRepo = Command:command 'add-repo'
             metafile = metafile .. str
         end
     }
-    if res.status then
+    if res then
         local parsed_file = JSON.parse(metafile)
         if parsed_file then
             if parsed_file.format_version == Version:getNum(1) then
-                if not Repo:isExist(parsed_file.identifier) then
-                    Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_enable))
+                if Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_enable)) then
                     Log:Info('成功添加仓库 %s，标识符为 %s。',parsed_file.name,parsed_file.identifier)
                     if not dict.no_enable then
                         Repo:setStatus(parsed_file.identifier,false)
                         -- update repo here.
                     end
                 else
-                    Log:Error('该仓库已存在。')
+                    Log:Error('仓库添加失败')
                 end
             else
                 Log:Error('描述文件版本与管理器不匹配。')
@@ -104,6 +103,16 @@ Order.AddRepo = Command:command 'add-repo'
   end)
 Order.AddRepo:argument('link','仓库描述文件下载链接')
 Order.AddRepo:flag('--no-enable','仅添加仓库（跳过自动启用与更新）')
+
+Order.RmRepo = Command:command 'rm-repo'
+  :summary '删除一个仓库'
+  :description '此命令将删除现存的仓库'
+  :action (function (dict)
+    if Repo:remove(dict.uuid) then
+      Log:Info('仓库（%s）已被删除',dict.uuid)
+    end
+  end)
+Order.RmRepo:argument('uuid','目标仓库的UUID')
 
 Order.ListRepo = Command:command 'list-repo'
   :summary '列出所有仓库'
@@ -119,21 +128,19 @@ Order.ListRepo = Command:command 'list-repo'
         end
         Log:Info('%s. %s - [%s]',n,a,uuid)
     end
-  end)
+end)
 
 Order.SetRepo = Command:command 'set-repo'
-  :summary '设置默认仓库并更新软件列表'
-  :description '此命令将设置一个已配置软件源并更新软件包列表。'
+  :summary '开启或关闭指定仓库'
+  :description '此命令将重设仓库开关状态并更新软件包列表。'
   :action (function (dict)
-    local uuid = dict.UUID
-    if Repo:isExist(uuid) then
-        Settings:set('repo.use',uuid)
-        Log:Info('成功设置 %s 为主要仓库',Repo:getName(uuid))
-    else
-        Log:Error('无法通过UUID（%s）找到仓库，请检查输入',uuid)
+    if Repo:setStatus(dict.uuid,dict.status == 'enable') then
+      Log:Info('仓库状态已更新。')
     end
   end)
-Order.SetRepo:argument('UUID','目标仓库的UUID。')
+Order.SetRepo:argument('uuid','目标仓库的UUID。')
+Order.SetRepo:argument('status','开或关')
+  :choices {'enable','disable'}
 
 Order.ListProtocol = Command:command 'list-protocol'
   :summary '列出下载所有组件'
