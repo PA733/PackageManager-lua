@@ -10,6 +10,7 @@ require "version"
 require "logger"
 require "cloud"
 
+-- local driver = require "sqlite3"
 local Log = Logger:new('Repo')
 Repo = {
     loaded = {}
@@ -116,21 +117,22 @@ function Repo:getAllEnabled()
 end
 
 function Repo:update(uuid)
-    local repo = fetch(uuid)
+    local repo = self.loaded[fetch(uuid)]
     Log:Info('正在更新仓库 %s ...',repo.name)
     Log:Info('正在拉取描述文件...')
-    local result,text_result
+    local result,text_result = '',''
     result = Cloud:NewTask {
         url = repo.metafile,
         writefunction = function (str)
             text_result = text_result .. str
         end
     }
-    if result then
+    if not result then
         Log:Error('描述文件下载失败！')
         return false
     end
     local cond = JSON.parse(text_result)
+    text_result = ''
     if not cond then
         Log:Error('描述文件解析失败！')
         return false
@@ -139,6 +141,42 @@ function Repo:update(uuid)
         Log:Error('描述文件的版本与管理器不匹配！')
         return false
     end
+    if cond.status == 0 then
+        for n,cont in pairs(cond.root.classes) do
+            if cont.broadcast then
+                local dbpath = tostring(string.format('data/repositories/%s/classes/%s.db',uuid,cont.name))
+                if Fs:isExist(dbpath) then
+                    Log:Warn('FILE IS EXIST.')
+                    -- local env = driver.sqlite3()
+                    -- local db = env:connect(dbpath)
+                else
+                    Log:Info('分类 %s 的数据库不存在，正在下载...',cont.name)
+                    local dbfile = io.open(dbpath,"wb")
+                    local url = cont.resource
+                    if not string.find(url,'://') then
+                        local baseLink = string.reverse(string.sub(string.reverse(repo.metafile),string.find(string.reverse(repo.metafile),'/')-string.len(repo.metafile)-1))
+                        url = string.format('%sclasses/%s',baseLink,url)
+                    end
+                    result = Cloud:NewTask {
+                        url = url,
+                        writefunction = dbfile
+                    }
+                    dbfile:close()
+                    if result then
+                        Log:Info('下载成功。')
+                    else
+                        Log:Error('分类 %s 的数据库下载失败！',cont.name)
+                        Fs:remove(dbpath)
+                    end
+                end
+            end
+        end
+    elseif cond.status == 1 then
+        Log:Warn('无法更新 %s（%s），因为该仓库正在维护。',cond.name,uuid)
+    elseif cond.status == 2 then
+        Log:Warn('无法更新 %s（%s），因为该仓库已停止服务。',cond.name,uuid)
+    end
+    return false
 end
 
 function Repo:fetchSoftware(uuid,condition)

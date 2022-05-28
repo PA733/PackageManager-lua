@@ -55,6 +55,11 @@ Order.Install:argument('name','软件包名称')
 Order.Update = Command:command 'update'
   :summary '执行升级操作'
   :description '此命令将先从仓库拉取最新软件包列表，然后检查本地已安装软件版本。'
+  :action (function (dict)
+    for n,uuid in pairs(Repo:getAllEnabled()) do
+      Repo:update(uuid)
+    end
+  end)
 
 Order.Remove = Command:command 'remove'
   :summary '删除一个软件包'

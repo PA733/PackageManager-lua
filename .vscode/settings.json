@@ -3,5 +3,6 @@
         "toBool",
         "Logger",
         "array"
-    ]
+    ],
+    "LLScriptHelper.isrunning": false
 }

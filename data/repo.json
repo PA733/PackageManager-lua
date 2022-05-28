@@ -1,4 +1,9 @@
 {
-  "repo":[],
-  "format_version":100
+  "format_version":100,
+  "repo":[{
+      "metafile":"https://raw.githubusercontent.com/Redbeanw44602/TestRepo/main/self.json",
+      "name":"Github Testing Repo",
+      "enabled":true,
+      "uuid":"2ae709c3-31c2-41cc-8ced-4686faaabae9"
+    }]
 }

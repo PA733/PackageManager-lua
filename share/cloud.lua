@@ -312,7 +312,7 @@ function Cloud.Protocol.Http:get(url,payload)
                     Rec.step = 1
                 end
             end
-            local formatted = string.format(' %s Downloading [%s] %sM/s (%sM/%sM)',Rec.steps[Rec.step],Rec.progress,Rec.average_speed,SizeConv.Byte2Mb(downloaded),SizeConv.Byte2Mb(size))
+            local formatted = string.format(' %s Downloading %s %sM/s (%sM/%sM)',Rec.steps[Rec.step],Rec.progress,Rec.average_speed,SizeConv.Byte2Mb(downloaded),SizeConv.Byte2Mb(size))
             local strlen = string.len(formatted)
             if Rec.max_size < strlen then
                 Rec.max_size = strlen
@@ -325,7 +325,7 @@ function Cloud.Protocol.Http:get(url,payload)
         timeout = 15
     }
     local msf = easy:perform()
-    io.write(string.format('\r √ Completed, [%s] %sM/s (%sM).',string.rep('━',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
+    io.write(string.format('\r √ Completed, %s %sM/s (%sM).',string.rep('━',20),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..string.rep(' ',8),'\n')
     easy:close()
     return true
 end
