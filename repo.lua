@@ -120,7 +120,7 @@ function Repo:update(uuid)
     local repo = self.loaded[fetch(uuid)]
     Log:Info('正在更新仓库 %s ...',repo.name)
     Log:Info('正在拉取描述文件...')
-    local result,text_result = '',''
+    local result,text_result = {},''
     result = Cloud:NewTask {
         url = repo.metafile,
         writefunction = function (str)
@@ -144,7 +144,7 @@ function Repo:update(uuid)
     if cond.status == 0 then
         for n,cont in pairs(cond.root.classes) do
             if cont.broadcast then
-                local dbpath = tostring(string.format('data/repositories/%s/classes/%s.db',uuid,cont.name))
+                local dbpath = ('data/repositories/%s/classes/%s.db'):format(uuid,cont.name)
                 if Fs:isExist(dbpath) then
                     Log:Warn('FILE IS EXIST.')
                     -- local env = driver.sqlite3()
@@ -153,9 +153,9 @@ function Repo:update(uuid)
                     Log:Info('分类 %s 的数据库不存在，正在下载...',cont.name)
                     local dbfile = io.open(dbpath,"wb")
                     local url = cont.resource
-                    if not string.find(url,'://') then
-                        local baseLink = string.reverse(string.sub(string.reverse(repo.metafile),string.find(string.reverse(repo.metafile),'/')-string.len(repo.metafile)-1))
-                        url = string.format('%sclasses/%s',baseLink,url)
+                    if not url:find('://') then
+                        local baseLink = repo.metafile:reverse():sub(repo.metafile:reverse():find('/')-repo.metafile:len()-1):reverse()
+                        url = ('%sclasses/%s'):format(baseLink,url)
                     end
                     result = Cloud:NewTask {
                         url = url,

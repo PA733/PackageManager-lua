@@ -86,23 +86,23 @@ end
 
 --- 打印普通信息
 ---@param what string
----@param ... string
+---@param ... any
 function Logger:Info(what,...)
-    rawLog(self,'INFO',string.format(what,...))
+    rawLog(self,'INFO',what:format(...))
 end
 
 --- 打印警告信息
 ---@param what string
 ---@param ... string
 function Logger:Warn(what,...)
-    rawLog(self,'WARN',string.format(what,...))
+    rawLog(self,'WARN',what:format(...))
 end
 
 --- 打印错误信息
 ---@param what string
 ---@param ... string
 function Logger:Error(what,...)
-    rawLog(self,'ERROR',string.format(what,...))
+    rawLog(self,'ERROR',what.format(...))
 end
 
 --- 打印调试信息
@@ -116,7 +116,7 @@ function Logger:Debug(what,...)
     if T == 'boolean' then
         what = tostring(what)
     elseif T == 'string' then
-        what = string.format(what,...)
+        what = what.format(...)
     elseif T == 'table' then
         what = table.toDebugString(what)
     end
