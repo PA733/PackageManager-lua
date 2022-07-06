@@ -9,7 +9,7 @@ The package manager for LiteLoaderBDS, made by Lua.
  - [ ] Verify packages over GPG.
 
 ## Credits
- - [LFS](https://github.com/keplerproject/luafilesystem)
+ - [WinFile](https://github.com/cloudwu/luawinfile)
  - [Lua-cURL](https://github.com/Lua-cURL/Lua-cURLv3)
  - [LuaSQL](https://github.com/keplerproject/luasql)
  - [dkjson](https://github.com/LuaDist/dkjson)

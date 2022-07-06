@@ -1,3 +1,4 @@
 DEVMODE
 test.lua
+*.dll
 vscode/
