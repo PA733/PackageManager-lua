@@ -6,12 +6,18 @@
 
 require "native-type-helper"
 local wf = require("winfile")
+local dir_sym = package.config:sub(1,1)
 
 Fs = {}
+
 local function directory(path)
-    path = path .. '\\'
-    path = string.gsub(path,'/','\\')
-    path = string.gsub(path,'\\\\','\\')
+    path = path .. dir_sym
+    if dir_sym == '/' then
+        path = string.gsub(path,'/',dir_sym)
+    elseif dir_sym == '\\' then
+        path = string.gsub(path,'\\',dir_sym)
+    end
+    path = string.gsub(path,dir_sym..dir_sym,dir_sym)
     return path
 end
 
@@ -27,7 +33,7 @@ function Fs:getDirectoryList(path)
         if file~='.' and file~='..' then
             local attr = wf.attributes(path..file)
             if attr and attr.mode=='directory' then
-                list = Array.Concat(list,self:getDirectoryList(path..file..'\\'))
+                list = Array.Concat(list,self:getDirectoryList(path..file..dir_sym))
             end
             list[#list+1] = path..file
         end
@@ -51,21 +57,19 @@ end
 
 function Fs:mkdir(path)
     path = directory(path)
-    local dirs = string.split(path,'\\')
+    local dirs = string.split(path,dir_sym)
     for k,v in pairs(dirs) do
-        wf.mkdir(table.concat(dirs,'\\',1,k)..'\\')
+        wf.mkdir(table.concat(dirs,dir_sym,1,k)..dir_sym)
     end
     return true
 end
 
 function Fs:rmdir(path,forceMode)
-    local m = wf.rmdir(directory(path))
+    local m = wf.remove(directory(path))
     if m then
        return true
     elseif forceMode then
-        for a,tph in pairs(self:getDirectoryList(path)) do
-            wf.remove(tph)
-        end
+        os.execute(('rd "%s" /s /q'):format(m))
         return self:rmdir(path)
     end
     return false
