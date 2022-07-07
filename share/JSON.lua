@@ -1,4 +1,4 @@
-local base = require "dkjson"
+local base = require "json/json"
 
 JSON = {}
 

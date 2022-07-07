@@ -12,5 +12,5 @@ The package manager for LiteLoaderBDS, made by Lua.
  - [WinFile](https://github.com/cloudwu/luawinfile)
  - [Lua-cURL](https://github.com/Lua-cURL/Lua-cURLv3)
  - [LuaSQL](https://github.com/keplerproject/luasql)
- - [dkjson](https://github.com/LuaDist/dkjson)
+ - [json.lua](https://github.com/actboy168/json.lua)
  - [sha1](https://github.com/mpeterv/sha1)
