@@ -40,7 +40,6 @@ end
 ---@param topath string? 解压到路径, 若不提供则返回一个临时路径
 function P7zip:extract(path,topath)
     topath = topath or Temp:getDirectory()
-    
     return Wf.popen(('%s%s x -o"%s" -y "%s"'):format(self.path,'7za',topath,path)):read('*a'):find('Everything is Ok')~=nil,topath
 end
 
