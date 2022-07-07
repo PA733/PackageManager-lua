@@ -13,7 +13,7 @@ local Log = Logger:new('Settings')
 local cfg = {
     version = Version:getNum(0),
     output = {
-        noColor = false
+        no_color = false
     }
 }
 

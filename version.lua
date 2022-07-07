@@ -10,7 +10,12 @@ Version = {
         minor = 0,
         revision = 0
     },
-    [1] = { -- *** Repofile ***
+    [1] = { -- *** Repo file ***
+        major = 1,
+        minor = 0,
+        revision = 0
+    },
+    [2] = { -- *** Verification file ***
         major = 1,
         minor = 0,
         revision = 0

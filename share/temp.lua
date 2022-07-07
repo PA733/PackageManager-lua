@@ -7,7 +7,7 @@
 Fs = require "filesystem"
 
 Temp = {
-    baseDir = 'temp\\'
+    baseDir = 'temp/'
 }
 
 local function getRandStr()
@@ -44,7 +44,7 @@ function Temp:getDirectory()
         end
     end
     Fs:mkdir(n)
-    return n
+    return n..'/'
 end
 
 return Temp

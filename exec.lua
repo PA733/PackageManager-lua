@@ -18,6 +18,7 @@ require "cloud"
 require "version"
 require "7Zip"
 require "temp"
+require "environment"
 
 Fs = require "filesystem"
 Parser = require "argparse"
@@ -54,7 +55,43 @@ end
 Order.Install = Command:command 'install'
   :summary '安装一个软件包'
   :description '此命令将从源中检索软件包，并尝试安装。'
+  :action (function (dict)
+    local name = dict.name
+    if name:sub(name:len()-3) == '.' .. ENV.EXTNAME then
+      -- local mode.
+      Log:Info('正在解析软件包...')
+      local stat,path = P7zip:extract(name)
+      if not stat then
+        Log:Error('解压缩软件包时出现异常。')
+        return
+      end
+      local CHECK_LIST = {
+        'self.json',
+        'verification.json'
+      }
+      for _,n in pairs(CHECK_LIST) do
+        if not Fs:isExist(path..n) then
+          Log:Error('不合法的包，缺少 %s。',n)
+          return
+        end
+      end
+      local pkgInfo = JSON.parse(Fs:readFrom(path..'self.json'))
+      local verifyInfo = JSON.parse(Fs:readFrom(path..'verification.json'))
+      if not pkgInfo then
+        Log:Error('读取包信息时出现异常。')
+        return
+      end
+      if not dict.no_verify and not verifyInfo then
+        Log:Error('读取校验信息时出现异常。')
+        return
+      end
+      Log:Info('正在读取即将安装的软件包列表...')
+    else
+      -- networked mode.
+    end
+  end)
 Order.Install:argument('name','软件包名称')
+Order.Install:flag('--no-verify','跳过软件包校验步骤')
 
 Order.Update = Command:command 'update'
   :summary '执行升级操作'

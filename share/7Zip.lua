@@ -33,8 +33,6 @@ function P7zip:init()
         return false
     end
 
-    self:archive('C:\\Users\\RedbeanW\\Desktop\\BDS_Work\\Project\\PackageManager\\lib\\7zip\\pack','C:\\Users\\RedbeanW\\Desktop\\BDS_Work\\Project\\PackageManager\\lib\\a.lpk')
-
 end
 
 ---解压缩
@@ -42,7 +40,8 @@ end
 ---@param topath string? 解压到路径, 若不提供则返回一个临时路径
 function P7zip:extract(path,topath)
     topath = topath or Temp:getDirectory()
-    return Wf.popen(('%s%s x -o"%s" -y "%s"'):format(self.path,'7za',topath,path)):read('*a'):find('Everything is Ok') ~= nil
+    
+    return Wf.popen(('%s%s x -o"%s" -y "%s"'):format(self.path,'7za',topath,path)):read('*a'):find('Everything is Ok')~=nil,topath
 end
 
 ---创建压缩包
