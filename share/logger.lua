@@ -102,7 +102,7 @@ end
 ---@param what string
 ---@param ... string
 function Logger:Error(what,...)
-    rawLog(self,'ERROR',what.format(...))
+    rawLog(self,'ERROR',what:format(...))
 end
 
 --- 打印调试信息
@@ -116,7 +116,7 @@ function Logger:Debug(what,...)
     if T == 'boolean' then
         what = tostring(what)
     elseif T == 'string' then
-        what = what.format(...)
+        what = what:format(...)
     elseif T == 'table' then
         what = table.toDebugString(what)
     end

@@ -66,7 +66,7 @@ end
 
 --- 创建新任务
 ---@param dict table 需提供 url, writefunction, 可选 ua, header。
----@return table 结果
+---@return any
 function Cloud:NewTask(dict)
     --- URL:
     --- (Http) https://example.com/a.zip
@@ -74,6 +74,9 @@ function Cloud:NewTask(dict)
     --- payload:
     --- ua, header, writefunction
     local name,protocol = fetch(dict.url)
+    if not protocol then
+        return false
+    end
     local rtn
     if dict.payload then
         for k,v in pairs(dict.payload) do
@@ -105,8 +108,8 @@ end
 ---
 --- *注意* 只支持单文件解析，目录解析暂不支持
 ---
----@param shareId string 分享ID，即分享链接末部分=
----@param passwd string 密码（如果有），可以为nil
+---@param shareId string 分享ID, 即分享链接末部分=
+---@param passwd string 密码(如果有), 可以为nil
 ---@param payload table 请求载荷
 function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
     local L = Logger:new('Lanzou')
@@ -259,9 +262,9 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
     end
 end
 
---- HTTP（s）下载
+--- HTTP (s) 下载
 ---@param url string 链接
----@param payload string 请求载荷
+---@param payload table 请求载荷
 function Cloud.Protocol.Http:get(url,payload)
     Log:Debug('下载: %s',url)
     local proInfo = {
@@ -271,7 +274,7 @@ function Cloud.Protocol.Http:get(url,payload)
         max_size = 0,
         steps = { '○','◔','◑','◕','●' },
         step = 1,
-        progress = string.rep('━',20),
+        progress = ('━'):rep(20),
         size_vaild = false,
         completed = false
     }

@@ -16,6 +16,8 @@ require "settings"
 require "repo"
 require "cloud"
 require "version"
+require "7Zip"
+require "temp"
 
 Fs = require "filesystem"
 Parser = require "argparse"
@@ -32,7 +34,9 @@ Command = Parser() {
     epilog = '获得更多信息，请访问: https://repo.litebds.com/。'
 }
 
+Temp:init()
 Settings:init()
+P7zip:init()
 Repo:init()
 
 if Settings:get('output.noColor') then

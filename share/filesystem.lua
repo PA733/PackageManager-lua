@@ -69,8 +69,13 @@ function Fs:rmdir(path,forceMode)
     if m then
        return true
     elseif forceMode then
-        os.execute(('rd "%s" /s /q'):format(m))
-        return self:rmdir(path)
+        local ret
+        if dir_sym == '/' then -- linux
+            ret = wf.execute(('rm -rf "%s"'):format(path))
+        elseif dir_sym == '\\' then -- windows
+            ret = wf.execute(('rd "%s" /s /q'):format(path))
+        end
+        return ret
     end
     return false
 end
