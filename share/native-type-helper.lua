@@ -8,6 +8,7 @@
 
 function string.split(str,reps)
 	local result = {}
+---@diagnostic disable-next-line: discard-returns
 	string.gsub(str,'[^'..reps..']+',function (n)
 		table.insert(result,n)
 	end)

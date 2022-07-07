@@ -9,6 +9,7 @@ require "filesystem"
 require "version"
 require "logger"
 require "cloud"
+local wf = require "winfile"
 
 -- local driver = require "sqlite3"
 local Log = Logger:new('Repo')
@@ -151,7 +152,7 @@ function Repo:update(uuid)
                     -- local db = env:connect(dbpath)
                 else
                     Log:Info('分类 %s 的数据库不存在，正在下载...',cont.name)
-                    local dbfile = io.open(dbpath,"wb")
+                    local dbfile = wf.open(dbpath,"wb")
                     local url = cont.resource
                     if not url:find('://') then
                         local baseLink = repo.metafile:reverse():sub(repo.metafile:reverse():find('/')-repo.metafile:len()-1):reverse()
