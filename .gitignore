@@ -1,5 +1,10 @@
-DEVMODE
-test.lua
-*.dll
+
+# Dev
 vscode/
+test.lua
+libcurl.dll
+DEVMODE
+
+# Runtime
 data/
+temp/

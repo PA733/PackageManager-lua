@@ -14,3 +14,4 @@ The package manager for LiteLoaderBDS, made by Lua.
  - [LuaSQL](https://github.com/keplerproject/luasql)
  - [json.lua](https://github.com/actboy168/json.lua)
  - [sha1](https://github.com/mpeterv/sha1)
+ - [7-zip](https://www.7-zip.org/)
