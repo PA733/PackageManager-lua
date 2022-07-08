@@ -46,7 +46,7 @@ end
 ]]
 
 ---目录迭代器
----@param path string
+---@param path? string
 ---@param callback function 原型 `cb(nowpath,file)`
 ---@return boolean
 function Fs:iterator(path,callback)

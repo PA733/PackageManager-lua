@@ -14,6 +14,8 @@ local wf = require "winfile"
 -- local driver = require "sqlite3"
 local Log = Logger:new('Repo')
 Repo = {
+    dir_cfg = 'data/repo.json',
+    dir = 'data/repositories/',
     loaded = {}
 }
 
@@ -27,18 +29,18 @@ local function fetch(uuid)
 end
 
 function Repo:init()
-    if not Fs:isExist('data/repo.json') then
-        Fs:writeTo('data/repo.json',JSON.stringify {
+    if not Fs:isExist(self.dir_cfg) then
+        Fs:writeTo(self.dir_cfg,JSON.stringify {
             format_version = Version:getNum(1),
             repo = {}
         })
     end
-    self.loaded = JSON.parse(Fs:readFrom('data/repo.json')).repo
+    self.loaded = JSON.parse(Fs:readFrom(self.dir_cfg)).repo
     return self.loaded ~= nil
 end
 
 function Repo:save()
-    Fs:writeTo('data/repo.json',JSON.stringify {
+    Fs:writeTo(self.dir_cfg,JSON.stringify {
         format_version = Version:getNum(1),
         repo = self.loaded
     })
@@ -60,7 +62,7 @@ function Repo:add(uuid,name,metafile,isEnabled)
         enabled = isEnabled or false
     }
     self:save()
-    Fs:mkdir('data/repositories/'..uuid..'/classes')
+    Fs:mkdir(self.dir..uuid..'/classes')
     return true
 end
 
@@ -78,7 +80,7 @@ end
 function Repo:remove(uuid)
     local pos = fetch(uuid)
     if pos then
-        Fs:rmdir('data/repositories/'..uuid,true)
+        Fs:rmdir(self.dir..uuid,true)
         table.remove(self.loaded,pos)
         self:save()
         return true
@@ -151,7 +153,7 @@ function Repo:update(uuid)
     if cond.status == 0 then
         for n,cont in pairs(cond.root.classes) do
             if cont.broadcast then
-                local dbpath = ('data/repositories/%s/classes/%s.db'):format(uuid,cont.name)
+                local dbpath = ('%s%s/classes/%s.db'):format(self.dir,uuid,cont.name)
                 if Fs:isExist(dbpath) then
                     Log:Warn('FILE IS EXIST.')
                     -- local env = driver.sqlite3()

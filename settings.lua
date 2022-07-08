@@ -18,14 +18,15 @@ local cfg = {
 }
 
 Settings = {
+    dir = 'data/config.json',
     loaded = false
 }
 
 function Settings:init()
-    if not Fs:isExist('data/config.json') then
-        Fs:writeTo('data/config.json',JSON.stringify(cfg))
+    if not Fs:isExist(self.dir) then
+        Fs:writeTo(self.dir,JSON.stringify(cfg))
     end
-    local loadcfg = JSON.parse(Fs:readFrom('data/config.json'))
+    local loadcfg = JSON.parse(Fs:readFrom(self.dir))
     for n,path in pairs(table.getAllPaths(cfg,false)) do
         local m = table.getKey(loadcfg,path)
         if m ~= nil then
@@ -61,7 +62,7 @@ function Settings:save()
         Log:Error('尝试在配置项初始化前保存')
         return
     end
-    Fs:writeTo('data/config.json',JSON.stringify(cfg))
+    Fs:writeTo(self.dir,JSON.stringify(cfg))
     return true
 end
 

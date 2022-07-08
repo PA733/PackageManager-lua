@@ -1,5 +1,13 @@
-local base = require "json/json"
+--[[ ----------------------------------------
 
+    [Deps] Json.
+
+--]] ----------------------------------------
+
+local base = require "json/json"
+require "logger"
+
+Log = Logger:new('Json')
 JSON = {}
 
 function JSON.parse(str)
@@ -7,7 +15,7 @@ function JSON.parse(str)
     if stat then
         return rtn
     end
-    Logger:Error('Could not parse JSON, content = %s',str)
+    Log:Error('Could not parse JSON, content = "%s"',str)
     return nil
 end
 
@@ -16,7 +24,7 @@ function JSON.stringify(object)
     if stat then
         return rtn
     end
-    Logger:Error('Could not stringify object.',object)
+    Log:Error('Could not stringify object.',object)
     return nil
 end
 

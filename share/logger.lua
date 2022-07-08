@@ -22,7 +22,7 @@ local emptyColor = {
 
 ---@class Logger
 Logger = {
-    noColor = false
+    no_color = false
 }
 
 --- 创建一个新Logger
@@ -64,7 +64,7 @@ end
 
 local function rawLog(logger,type,what)
     local color
-    if Logger.noColor then
+    if Logger.no_color then
         color = emptyColor[type]
     else
         color = logger.color[type]
@@ -80,7 +80,7 @@ end
 --- 全局禁用日志器颜色
 ---@return boolean
 function Logger.setNoColor()
-    Logger.noColor = true
+    Logger.no_color = true
     return true
 end
 

@@ -134,14 +134,23 @@ function table.toDebugString(tab)
 	return rtn
 end
 
-Array = {
-	Concat = function(origin,array)
-		for n,k in pairs(array) do
-			origin[#origin+1] = k
+array = {}
+
+function array.concat(origin,array)
+	for n,k in pairs(array) do
+		origin[#origin+1] = k
+	end
+	return origin
+end
+
+function array.fetch(origin,element)
+	for p,e in pairs(origin) do
+		if element == e then
+			return p
 		end
-		return origin
-	end,
-}
+	end
+	return nil
+end
 
 --- other
 
