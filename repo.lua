@@ -27,13 +27,19 @@ local function fetch(uuid)
 end
 
 function Repo:init()
+    if not Fs:isExist('data/repo.json') then
+        Fs:writeTo('data/repo.json',JSON.stringify {
+            format_version = Version:getNum(1),
+            repo = {}
+        })
+    end
     self.loaded = JSON.parse(Fs:readFrom('data/repo.json')).repo
-    return true
+    return self.loaded ~= nil
 end
 
 function Repo:save()
     Fs:writeTo('data/repo.json',JSON.stringify {
-        format_version = Version:getNum(0),
+        format_version = Version:getNum(1),
         repo = self.loaded
     })
 end

@@ -11,7 +11,7 @@ Fs = require "filesystem"
 Log = Logger:new('7Zip')
 
 P7zip = {
-    path = 'lib\\7zip\\',
+    path = 'lib\\7zip\\', --- windows: must be '\'
     files = {
         '7za.exe',
         '7za.dll',

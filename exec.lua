@@ -19,6 +19,7 @@ require "version"
 require "7Zip"
 require "temp"
 require "environment"
+require "pkgmgr"
 
 Fs = require "filesystem"
 Parser = require "argparse"
@@ -35,12 +36,16 @@ Command = Parser() {
     epilog = '获得更多信息，请访问: https://repo.litebds.com/。'
 }
 
+Fs:mkdir('data')
+Fs:mkdir('data/repositories')
+
 Temp:init()
 Settings:init()
 P7zip:init()
 Repo:init()
+PackMgr:init()
 
-if Settings:get('output.noColor') then
+if Settings:get('output.no_color') then
     Logger.setNoColor()
 end
 
@@ -124,31 +129,30 @@ Order.AddRepo = Command:command 'add-repo'
             metafile = metafile .. str
         end
     }
-    if res then
-        local parsed_file = JSON.parse(metafile)
-        if parsed_file then
-            if parsed_file.format_version == Version:getNum(1) then
-                if Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_enable)) then
-                    Log:Info('成功添加仓库 %s，标识符为 %s。',parsed_file.name,parsed_file.identifier)
-                    if not dict.no_enable then
-                        Repo:setStatus(parsed_file.identifier,false)
-                        -- update repo here.
-                    end
-                else
-                    Log:Error('仓库添加失败')
-                end
-            else
-                Log:Error('描述文件版本与管理器不匹配。')
-            end
-        else
-            Log:Error('解析描述文件时出错。')
-        end
-    else
+    if not res then
         Log:Error('下载描述文件时出错。')
+        return
+    end
+    local parsed_file = JSON.parse(metafile)
+    if not parsed_file then
+        Log:Error('解析描述文件时出错。')
+        return
+    end
+    if parsed_file.format_version ~= Version:getNum(1) then
+      Log:Error('描述文件版本与管理器不匹配。')
+      return
+    end
+    if not Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_update)) then
+        Log:Error('仓库添加失败')
+    end
+    Log:Info('成功添加仓库 %s，标识符为 %s。',parsed_file.name,parsed_file.identifier)
+    if not dict.no_update then
+        Repo:setStatus(parsed_file.identifier,false)
+        -- update repo here.
     end
   end)
 Order.AddRepo:argument('link','仓库描述文件下载链接')
-Order.AddRepo:flag('--no-enable','仅添加仓库（跳过自动启用与更新）')
+Order.AddRepo:flag('--no-update','仅添加仓库（跳过自动启用与更新）')
 
 Order.RmRepo = Command:command 'rm-repo'
   :summary '删除一个仓库'

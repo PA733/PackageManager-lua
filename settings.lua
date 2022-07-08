@@ -22,6 +22,9 @@ Settings = {
 }
 
 function Settings:init()
+    if not Fs:isExist('data/config.json') then
+        Fs:writeTo('data/config.json',JSON.stringify(cfg))
+    end
     local loadcfg = JSON.parse(Fs:readFrom('data/config.json'))
     for n,path in pairs(table.getAllPaths(cfg,false)) do
         local m = table.getKey(loadcfg,path)
@@ -32,7 +35,7 @@ function Settings:init()
         end
     end
     self.loaded = true
-    return true
+    return self.loaded
 end
 
 function Settings:get(path)
