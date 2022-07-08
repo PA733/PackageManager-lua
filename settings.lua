@@ -6,12 +6,18 @@
 
 require "version"
 require "logger"
-require "JSON"
+require "json-safe"
 require "filesystem"
 
 local Log = Logger:new('Settings')
 local cfg = {
     version = Version:getNum(0),
+    bds = {
+        running_directory = ''
+    },
+    installer = {
+        allow_unsafe_directory = false
+    },
     output = {
         no_color = false
     }
@@ -24,7 +30,7 @@ Settings = {
 
 function Settings:init()
     if not Fs:isExist(self.dir) then
-        Fs:writeTo(self.dir,JSON.stringify(cfg))
+        Fs:writeTo(self.dir,JSON.stringify(cfg,true))
     end
     local loadcfg = JSON.parse(Fs:readFrom(self.dir))
     for n,path in pairs(table.getAllPaths(cfg,false)) do
@@ -62,7 +68,7 @@ function Settings:save()
         Log:Error('尝试在配置项初始化前保存')
         return
     end
-    Fs:writeTo(self.dir,JSON.stringify(cfg))
+    Fs:writeTo(self.dir,JSON.stringify(cfg,true))
     return true
 end
 

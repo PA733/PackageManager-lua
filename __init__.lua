@@ -4,7 +4,7 @@
 
 --]] ----------------------------------------
 
-package.path = package.path..';./share/?.lua'
+package.path = package.path..';./share/?.lua;./share/json/?.lua'
 package.cpath = package.cpath..';./lib/?.dll'
 FileSystem = require('filesystem')
 

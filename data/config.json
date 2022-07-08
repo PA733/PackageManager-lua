@@ -1,9 +1,0 @@
-{
-    "version": 100,
-    "installer": {
-        "allow_unsafe_directory": false
-    },
-    "output": {
-        "no_color": false
-    }
-}

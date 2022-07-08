@@ -6,7 +6,7 @@
 
 local curl = require "cURL"
 
-require "JSON"
+require "json-safe"
 require "logger"
 require "native-type-helper"
 

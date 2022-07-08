@@ -86,28 +86,42 @@ end
 
 --- 打印普通信息
 ---@param what string
----@param ... any
+---@param ... string|number
 function Logger:Info(what,...)
     rawLog(self,'INFO',what:format(...))
 end
 
 --- 打印警告信息
 ---@param what string
----@param ... string
+---@param ... string|number
 function Logger:Warn(what,...)
     rawLog(self,'WARN',what:format(...))
 end
 
 --- 打印错误信息
 ---@param what string
----@param ... string
+---@param ... string|number
 function Logger:Error(what,...)
     rawLog(self,'ERROR',what:format(...))
 end
 
+--- 直接打印(有换行符)
+---@param what string
+---@param ... string|number
+function Logger:Print(what,...)
+    io.write(what:format(...)..'\n')
+end
+
+---直接打印(不换行)
+---@param what string
+---@param ... string|number
+function Logger:Write(what,...)
+    io.write(what:format(...))
+end
+
 --- 打印调试信息
 ---@param what any
----@param ... any
+---@param ... string|number
 function Logger:Debug(what,...)
     if not DevMode then
         return

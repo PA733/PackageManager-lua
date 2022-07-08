@@ -4,7 +4,7 @@
 
 --]] ----------------------------------------
 
-require "JSON"
+require "json-safe"
 require "filesystem"
 require "version"
 require "logger"
@@ -29,6 +29,7 @@ local function fetch(uuid)
 end
 
 function Repo:init()
+    Fs:mkdir('data/repositories')
     if not Fs:isExist(self.dir_cfg) then
         Fs:writeTo(self.dir_cfg,JSON.stringify {
             format_version = Version:getNum(1),

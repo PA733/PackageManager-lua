@@ -4,7 +4,7 @@
 
 --]] ----------------------------------------
 
-local base = require "json/json"
+local base = require "json-beautify"
 require "logger"
 
 Log = Logger:new('Json')
@@ -19,8 +19,14 @@ function JSON.parse(str)
     return nil
 end
 
-function JSON.stringify(object)
-    local stat,rtn = pcall(base.encode,object,{ indent = true })
+function JSON.stringify(object,beautify)
+    beautify = beautify or false
+    local stat,rtn
+    if beautify then
+        stat,rtn = pcall(base.beautify,object)
+    else
+        stat,rtn = pcall(base.encode,object)
+    end
     if stat then
         return rtn
     end
