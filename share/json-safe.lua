@@ -4,10 +4,10 @@
 
 --]] ----------------------------------------
 
-local base = require "json-beautify"
 require "logger"
+local base = require "json-beautify"
+local Log = Logger:new('Json')
 
-Log = Logger:new('Json')
 JSON = {}
 
 function JSON.parse(str)

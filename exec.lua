@@ -11,19 +11,20 @@
 require "__init__"
 require "logger"
 require "native-type-helper"
-require "JSON"
+require "json-safe"
 require "settings"
 require "repo"
 require "cloud"
 require "version"
-require "7Zip"
+require "7zip"
 require "temp"
 require "environment"
 require "pkgmgr"
+require "bds"
 
 Fs = require "filesystem"
 Parser = require "argparse"
-Log = Logger:new('Main')
+local Log = Logger:new('Main')
 
 ----------------------------------------------------------
 -- |||||||||||||||||| Initialization |||||||||||||||||| --
@@ -37,13 +38,13 @@ Command = Parser() {
 }
 
 Fs:mkdir('data')
-Fs:mkdir('data/repositories')
 
 Temp:init()
 Settings:init()
 P7zip:init()
 Repo:init()
 PackMgr:init()
+BDS:init()
 
 if Settings:get('output.no_color') then
     Logger.setNoColor()
@@ -62,34 +63,9 @@ Order.Install = Command:command 'install'
   :description '此命令将从源中检索软件包，并尝试安装。'
   :action (function (dict)
     local name = dict.name
-    if name:sub(name:len()-3) == '.' .. ENV.EXTNAME then
+    if name:sub(name:len()-3) == '.' .. ENV.INSTALLER_EXTNAME then
       -- local mode.
-      Log:Info('正在解析软件包...')
-      local stat,path = P7zip:extract(name)
-      if not stat then
-        Log:Error('解压缩软件包时出现异常。')
-        return
-      end
-      local CHECK_LIST = {
-        'self.json',
-        'verification.json'
-      }
-      for _,n in pairs(CHECK_LIST) do
-        if not Fs:isExist(path..n) then
-          Log:Error('不合法的包，缺少 %s。',n)
-          return
-        end
-      end
-      local pkgInfo = JSON.parse(Fs:readFrom(path..'self.json'))
-      local verifyInfo = JSON.parse(Fs:readFrom(path..'verification.json'))
-      if not pkgInfo then
-        Log:Error('读取包信息时出现异常。')
-        return
-      end
-      if not dict.no_verify and not verifyInfo then
-        Log:Error('读取校验信息时出现异常。')
-        return
-      end
+
       Log:Info('正在读取即将安装的软件包列表...')
     else
       -- networked mode.
@@ -117,6 +93,13 @@ Order.Purge = Command:command 'purge'
   :summary '清除指定软件的数据'
   :description '此命令将清除指定软件储存的数据，但不卸载该软件。'
 Order.Purge:argument('name','软件包名称')
+
+Order.List = Command:command 'list'
+  :summary '列出已安装软件包'
+  :description '此命令将列出所有已经安装的软件包'
+  :action (function (dict)
+
+  end)
 
 Order.AddRepo = Command:command 'add-repo'
   :summary '添加新仓库'
@@ -181,7 +164,7 @@ Order.ListRepo = Command:command 'list-repo'
 end)
 
 Order.SetRepo = Command:command 'set-repo'
-  :summary '开启或关闭指定仓库'
+  :summary '重设使用的仓库'
   :description '此命令将重设仓库开关状态并更新软件包列表。'
   :action (function (dict)
     if Repo:setStatus(dict.uuid,dict.status == 'enable') then

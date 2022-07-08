@@ -6,9 +6,9 @@
 
 require "logger"
 require "temp"
+require "filesystem" 
 Wf = require "winfile"
-Fs = require "filesystem"
-Log = Logger:new('7Zip')
+local Log = Logger:new('7Zip')
 
 P7zip = {
     path = 'lib\\7zip\\', --- windows: must be '\'
