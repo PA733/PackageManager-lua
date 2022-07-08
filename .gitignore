@@ -2,6 +2,7 @@
 vscode/
 test*
 libcurl.dll
+sqlite3.dll
 DEVMODE
 
 # Runtime
