@@ -6,10 +6,10 @@
 
 --- string
 
-function string.split(str,reps)
+function string:split(reps)
 	local result = {}
 ---@diagnostic disable-next-line: discard-returns
-	string.gsub(str,'[^'..reps..']+',function (n)
+	self:gsub('[^'..reps..']+',function (n)
 		table.insert(result,n)
 	end)
 	return result
