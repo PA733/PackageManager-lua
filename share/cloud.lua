@@ -26,18 +26,7 @@ Cloud = {
         },
         ['Lanzou'] = {
             prefix = { 'lanzou://' },
-            servers = {
-                'lanzoui.com',
-                'lanzouj.com',
-                'lanzoul.com',
-                'lanzoup.com',
-                'lanzouq.com',
-                'lanzout.com',
-                'lanzouv.com',
-                'lanzouw.com',
-                'lanzoux.com',
-                'lanzouy.com',
-            }
+            api = 'https://api-lanzou.amd.rocks/?url=%s&pwd=%s'
         }
         --- ['Ftp'] = {
         ---     prefix = { 'ftp://' }
@@ -120,161 +109,39 @@ end
 ---@param passwd? string 密码(如果有), 可以为nil
 ---@param payload table 请求载荷
 function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
-    local L = Logger:new('Lanzou')
-    local function getRedirect(url)
-        local redic = curl.easy {
-            url = url,
-            httpheader = {
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-                'Cache-Control: no-cache',
-                'Connection: keep-alive',
-                'Pragma: no-cache',
-                'Upgrade-Insecure-Requests: 1'
-            },
-            accept_encoding = 'gzip, deflate, br',
-            ssl_verifypeer = false,
-            ssl_verifyhost = false
-        }
-        redic:perform()
-        local final_link = redic:getinfo_redirect_url()
-        local code = redic:getinfo_response_code()
-        redic:close()
-        return code,final_link
+    local url = ('https://www.lanzouy.com/%s'):format(shareId)
+    passwd = passwd or ''
+    local L = Logger:new('LanZou')
+    L:Info('正在获取下载链接...')
+    local res = ''
+    Cloud:NewTask {
+        url = self.api:format(url,passwd),
+        writefunction = function (data)
+            res = res .. data
+        end,
+        quiet = true
+    }
+    res = JSON.parse(res)
+    if not res then
+        L:Error('获取下载链接失败，API返回了错误的信息。')
+        return
     end
-
-    for tryingNum,link in pairs(self.servers) do
-
-        --- Init.
-        local baseUrl = ('https://www.%s/tp/'):format(link)
-        local url = ('%s%s'):format(baseUrl,shareId)
-        local data = ''
-
-        --- Get lanzou page, get informations.
-        local page = curl.easy {
-            url = url,
-            httpheader = {
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6'
-            },
-            writefunction = function (str)
-                data = data..str
-            end,
-            useragent = Cloud.UA,
-            accept_encoding = 'gzip, deflate, br',
-            ssl_verifypeer = false,
-            ssl_verifyhost = false,
-            timeout = 15
-        }
-        page:perform()
-        local page_rtncode = page:getinfo_response_code()
-        page:close()
-        --- Check page(server) status.
-        if page_rtncode == 200 then
-
-            if data:find('文件取消分享了') then
-                L:Error('该文件分享链接已失效')
-                return false
-            end
-
-            if data:find('pwd') then
-                if not passwd then
-                    L:Error('提取码错误')
-                    return false
-                end
-                --- Get file over passcode.
-                local sign = data:match('action=downprocess&sign=([^\"]*)&p=')
-                if not sign then
-                    L:Error('Sign获取失败')
-                    return false
-                end
-                local form = curl.form()
-                form:add_content('action','downprocess')
-                form:add_content('sign',sign)
-                form:add_content('p',passwd)
-                local response = ''
-                local ajaxm = curl.easy {
-                    url = ('%sajaxm.php'):format(baseUrl),
-                    httpheader = {
-                        'Accept: application/json, text/javascript, */*',
-                        'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-                        ('Referer: %s%s'):format(baseUrl,shareId),
-                        'X-Requested-With: XMLHttpRequest'
-
-                    },
-                    accept_encoding = 'gzip, deflate, br',
-                    post = true,
-                    httppost = form,
-                    writefunction = function (str)
-                        response = response..str
-                    end,
-                    useragent = Cloud.UA,
-                    ssl_verifypeer = false,
-                    ssl_verifyhost = false,
-                    timeout = 15
-                }
-                ajaxm:perform()
-                local ajax_rtncode = ajaxm:getinfo_response_code()
-                ajaxm:close()
-                form:free()
-                if ajax_rtncode ~= 200 then
-                    L:Error('蓝奏云返回异常代码 %s，获取失败。',ajax_rtncode)
-                    return false
-                end
-                local rtn = JSON.parse(response)
-                if rtn and rtn.zt == 1 then
-                    local _,downUrl = getRedirect(('%s/file/%s'):format(rtn.dom,rtn.url))
-                    print(downUrl)
-                    
-                    return Cloud:NewTask {
-                        url = downUrl,
-                        payload = payload
-                    }
-                else
-                    L:Error('蓝奏云返回了错误的信息，获取失败。')
-                    return false
-                end
-                break
-            else
-                --- Get file download link.
-                local downlink,fileId
-                local lzReq = pcall(function()
-                    data = data:gsub('\n',''):gsub(' ','')
-                    -- print(data)
-                    downlink = data:match(";varpototo='([^\"]*)';varspototo")
-                    fileId = data:match(";varspototo='([^\"]*)';//vardomianload")
-                    assert(downlink and fileId)
-                end)
-                if not lzReq then
-                    L:Error('解析失败，请检查模块更新。')
-                    return false
-                end
-                local redict_rtncode,final_link = getRedirect(downlink..fileId)
-                if redict_rtncode ~= 302 then
-                    L:Error('无法访问蓝奏云提供的跳转链接，请检查模块更新。')
-                    L:Error('跳转链接: %s, 错误返回: %s',downlink,redict_rtncode)
-                    return false
-                end
-                return Cloud:NewTask {
-                    url = final_link,
-                    payload = payload
-                }
-            end
-        else
-            L:Warn('%s 似乎失效...',link)
-            if tryingNum == #self.servers then
-                L:Error('所有蓝奏云服务器都无法访问，请检查模块更新。')
-                return false
-            end
-        end
+    if res.code ~= 200 then
+        L:Error('获取下载链接失败 (%s:%s)',res.code,res.msg)
+        return
     end
+    L:Info('正在下载: %s',res.name)
+    return Cloud:NewTask {
+        url = res.downUrl,
+        writefunction = payload.writefunction
+    }
+
 end
 
 --- HTTP (s) 下载
 ---@param url string 链接
 ---@param payload table 请求载荷
 function Cloud.Protocol.Http:get(url,payload)
-    -- Log:Debug('下载: %s',url)
     local blocks = 40
     local proInfo = {
         recording = {},
@@ -288,6 +155,7 @@ function Cloud.Protocol.Http:get(url,payload)
         completed = false
     }
     payload.ua = payload.ua or Cloud.UA
+    payload.quiet = payload.quiet or false
     local easy = curl.easy {
         url = url,
         httpheader = payload.header,
@@ -324,20 +192,27 @@ function Cloud.Protocol.Http:get(url,payload)
                     Rec.step = 1
                 end
             end
-            local formatted = (' %s Downloading %s %sM/s (%sM/%sM)'):format(Rec.steps[Rec.step],Rec.progress,Rec.average_speed,SizeConv.Byte2Mb(downloaded),SizeConv.Byte2Mb(size))
+            local prog
+            if size ~= 0 then
+                prog = math.floor(downloaded/size*100)
+            else
+                prog = 0
+            end
+            local formatted = (' %s %.3d%% %s %.2fM/s (%sM/%sM)'):format(Rec.steps[Rec.step],prog,Rec.progress,Rec.average_speed,SizeConv.Byte2Mb(downloaded),SizeConv.Byte2Mb(size))
             local strlen = formatted:len()
             if Rec.max_size < strlen then
                 Rec.max_size = strlen
             end
-            --io.write('\r',formatted,(' '):rep(Rec.max_size - strlen))
+            io.write('\r',formatted,(' '):rep(Rec.max_size - strlen))
         end,
-        noprogress = false,
+        noprogress = payload.quiet,
         ssl_verifypeer = false,
-        ssl_verifyhost = false,
-        timeout = 15
+        ssl_verifyhost = false
     }
     local msf = easy:perform()
-    --io.write(('\r √ Completed, %s %sM/s (%sM).'):format(('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..(' '):rep(8),'\n')
+    if not payload.quiet then
+        io.write(('\r √ 100%% %s %.2fM/s  (%sM).'):format(('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..(' '):rep(15),'\n')
+    end
     easy:close()
     return true
 end

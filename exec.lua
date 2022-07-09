@@ -179,7 +179,7 @@ Order.ListProtocol = Command:command 'list-protocol'
   :summary '列出下载所有组件'
   :description '此命令将列出所有已安装的下载组件。'
   :action (function (dict)
-    local list = Cloud.Protocol:getAll()
+    local list = Cloud:getAllProtocol()
     Log:Info('已装载 %s 个下载组件',#list)
     for k,v in pairs(list) do
         Log:Info('%s. %s',k,v)
