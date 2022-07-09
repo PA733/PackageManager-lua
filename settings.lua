@@ -30,9 +30,9 @@ Settings = {
 
 function Settings:init()
     if not Fs:isExist(self.dir) then
-        Fs:writeTo(self.dir,JSON.stringify(cfg,true))
+        Fs:writeTo(self.dir,JSON:stringify(cfg,true))
     end
-    local loadcfg = JSON.parse(Fs:readFrom(self.dir))
+    local loadcfg = JSON:parse(Fs:readFrom(self.dir))
     for n,path in pairs(table.getAllPaths(cfg,false)) do
         local m = table.getKey(loadcfg,path)
         if m ~= nil then
@@ -68,7 +68,7 @@ function Settings:save()
         Log:Error('尝试在配置项初始化前保存')
         return
     end
-    Fs:writeTo(self.dir,JSON.stringify(cfg,true))
+    Fs:writeTo(self.dir,JSON:stringify(cfg,true))
     return true
 end
 

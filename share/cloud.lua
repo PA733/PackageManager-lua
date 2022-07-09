@@ -121,7 +121,7 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
         end,
         quiet = true
     }
-    res = JSON.parse(res)
+    res = JSON:parse(res)
     if not res then
         L:Error('获取下载链接失败，API返回了错误的信息。')
         return

@@ -78,7 +78,7 @@ Order.Update = Command:command 'update'
   :summary '执行升级操作'
   :description '此命令将先从仓库拉取最新软件包列表，然后检查本地已安装软件版本。'
   :action (function (dict)
-    for n,uuid in pairs(Repo:getAllEnabled()) do
+    for _,uuid in pairs(Repo:getAllEnabled()) do
       Repo:update(uuid)
     end
   end)
@@ -116,7 +116,7 @@ Order.AddRepo = Command:command 'add-repo'
         Log:Error('下载描述文件时出错。')
         return
     end
-    local parsed_file = JSON.parse(metafile)
+    local parsed_file = JSON:parse(metafile)
     if not parsed_file then
         Log:Error('解析描述文件时出错。')
         return
@@ -127,9 +127,10 @@ Order.AddRepo = Command:command 'add-repo'
     end
     if not Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_update)) then
         Log:Error('仓库添加失败')
+        return
     end
     Log:Info('成功添加仓库 %s，标识符为 %s。',parsed_file.name,parsed_file.identifier)
-    if not dict.no_update then
+    if dict.no_update then
         Repo:setStatus(parsed_file.identifier,false)
         -- update repo here.
     end
