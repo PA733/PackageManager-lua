@@ -152,6 +152,14 @@ function array.fetch(origin,element)
 	return nil
 end
 
+function array.create(length,defaultValue)
+	local rtn = {}
+	for i=1,length do
+		table.insert(rtn,defaultValue)
+	end
+	return rtn
+end
+
 --- other
 
 function toBool(any)

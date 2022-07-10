@@ -106,6 +106,7 @@ Order.AddRepo = Command:command 'add-repo'
   :description '提供仓库描述文件链接以添加一个新仓库'
   :action (function (dict)
     local metafile = ''
+    Log:Info('正在下载描述文件...')
     local res = Cloud:NewTask {
         url = dict.link,
         writefunction = function (str)
@@ -125,7 +126,7 @@ Order.AddRepo = Command:command 'add-repo'
       Log:Error('描述文件版本与管理器不匹配。')
       return
     end
-    if not Repo:add(parsed_file.identifier,parsed_file.name,dict.link,not(dict.no_update)) then
+    if not Repo:add(parsed_file.identifier,dict.link,not(dict.no_update)) then
         Log:Error('仓库添加失败')
         return
     end
@@ -153,12 +154,11 @@ Order.ListRepo = Command:command 'list-repo'
   :description '此命令将列出所有已配置的仓库。'
   :action (function (dict)
     local repo_list = Repo:getAll()
-    local repo_using = Settings:get('repo.use')
     Log:Info('已装载 %s 个仓库',#repo_list)
     for n,uuid in pairs(repo_list) do
         local a = Repo:getName(uuid)
-        if uuid == repo_using then
-            a = a .. '（Using）'
+        if Repo:isEnabled(uuid) then
+            a = '(Enabled) '..a
         end
         Log:Info('%s. %s - [%s]',n,a,uuid)
     end
@@ -168,9 +168,7 @@ Order.SetRepo = Command:command 'set-repo'
   :summary '重设使用的仓库'
   :description '此命令将重设仓库开关状态并更新软件包列表。'
   :action (function (dict)
-    if Repo:setStatus(dict.uuid,dict.status == 'enable') then
-      Log:Info('仓库状态已更新。')
-    end
+    Repo:setStatus(dict.uuid,dict.status == 'enable')
   end)
 Order.SetRepo:argument('uuid','目标仓库的UUID。')
 Order.SetRepo:argument('status','开或关')
@@ -192,5 +190,9 @@ Command:flag('-y --yes','许可当前执行的命令发出的所有询问。')
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Executor ||||||||||||||||| --
 ----------------------------------------------------------
+
+if #arg == 0 then
+  arg[1] = '-h'
+end
 
 Command:parse(arg)

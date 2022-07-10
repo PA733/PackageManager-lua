@@ -9,37 +9,16 @@ require "filesystem"
 require "version"
 require "logger"
 require "cloud"
+require "native-type-helper"
 
 local Log = Logger:new('Repo')
 Repo = {
     dir_cfg = 'data/repo.json',
     dir = 'data/repositories/',
-    loaded = {}
+    loaded = {},
+    --- use `self:getPriorityList()` to get me!
+    priority = {}
 }
-
----fetch by uuid.
----@param uuid string
----@return integer|nil
-local function fetch(uuid)
-    for i,res in pairs(Repo.loaded) do
-        if res.uuid == uuid then
-            return i
-        end
-    end
-    return nil
-end
-
----fetch the top repo.
----@return string|nil
-local function fetchTop()
-    for i,res in pairs(Repo.loaded) do
-        if res.enabled then
-            return i
-        end
-    end
-    Log:Error('未启用任何仓库!')
-    return nil
-end
 
 local function url_get_root(url)
     return url:sub(1,url:len()-url:reverse():find('/')+1)
@@ -49,51 +28,50 @@ function Repo:init()
     Fs:mkdir('data/repositories')
     if not Fs:isExist(self.dir_cfg) then
         Fs:writeTo(self.dir_cfg,JSON:stringify {
-            format_version = Version:getNum(1),
-            repo = {}
+            format_version = Version:getNum(2),
+            priority = {},
+            repos = {}
         })
     end
-    self.loaded = JSON:parse(Fs:readFrom(self.dir_cfg)).repo
+    self.loaded = JSON:parse(Fs:readFrom(self.dir_cfg)).repos
     return self.loaded ~= nil
 end
 
 ---保存仓库列表
 function Repo:save()
-    Fs:writeTo(self.dir_cfg,JSON:stringify {
-        format_version = Version:getNum(1),
-        repo = self.loaded
-    })
+    Fs:writeTo(self.dir_cfg,JSON:stringify({
+        format_version = Version:getNum(2),
+        priority = self.priority,
+        repos = self.loaded
+    },true))
 end
 
 ---判断指定仓库是否存在
 ---@param uuid string
 ---@return boolean
 function Repo:isExist(uuid)
-    return fetch(uuid) ~= nil
+    return self.loaded[uuid] ~= nil
 end
 
 ---添加一个仓库
 ---@param uuid string
----@param name string
----@param metafile string
+---@param metafile string 自述文件下载链接
 ---@param isEnabled? boolean
 ---@return boolean
-function Repo:add(uuid,name,metafile,isEnabled)
+function Repo:add(uuid,metafile,isEnabled)
     isEnabled = isEnabled or true
     if self:isExist(uuid) then
         Log:Error('该仓库与现有的某个仓库的UUID冲突，可能重复添加了？')
         return false
     end
-    self.loaded[#self.loaded+1] = {
-        uuid = uuid,
-        name = name,
+    self.loaded[uuid] = {
         metafile = metafile,
         enabled = isEnabled
     }
     self:save()
     Fs:mkdir(self.dir..uuid..'/classes')
     if isEnabled then
-        self:update(uuid) 
+        self:update(uuid,true)
     end
     return true
 end
@@ -103,10 +81,14 @@ end
 ---@param isEnabled boolean
 ---@return boolean
 function Repo:setStatus(uuid,isEnabled)
-    local pos = fetch(uuid)
-    if pos then
-        self.loaded[pos].enabled = isEnabled
+    if #self:getAllEnabled() == 1 and not isEnabled then
+        Log:Error('无法更新 %s 状态，至少启用一个仓库。')
+        return false
+    end
+    if self:isExist(uuid) then
+        self.loaded[uuid].enabled = isEnabled
         self:save()
+        Log:Info('仓库 %s 的启用状态已更新为 %s。')
         return true
     end
     Log:Error('正在为一个不存在的仓库 (%s) 设定开关状态。',uuid)
@@ -117,23 +99,26 @@ end
 ---@param uuid string
 ---@return boolean
 function Repo:remove(uuid)
-    local pos = fetch(uuid)
-    if pos then
-        Fs:rmdir(self.dir..uuid,true)
-        table.remove(self.loaded,pos)
-        self:save()
-        return true
+    if not self:isExist(uuid) then
+        Log:Error('正在删除一个不存在的仓库 (%s)',uuid)
+        return false
     end
-    Log:Error('正在删除一个不存在的仓库 (%s)',uuid)
-    return false
+    if #self:getAllEnabled() <= 1 and self:isEnabled(uuid) then
+        Log:Error('若要删除 %s, 必须先启用另一个仓库。',self:getName(uuid))
+        return false
+    end
+    Fs:rmdir(self.dir..uuid,true)
+    self.loaded[uuid] = nil
+    self:save()
+    return true
 end
 
 ---获取所有已添加的仓库
 ---@return table
 function Repo:getAll()
     local rtn = {}
-    for a,b in pairs(self.loaded) do
-        rtn[#rtn+1] = b.uuid
+    for uuid,_ in pairs(self.loaded) do
+        rtn[#rtn+1] = uuid
     end
     return rtn
 end
@@ -142,9 +127,8 @@ end
 ---@param uuid string
 ---@return string|nil
 function Repo:getName(uuid)
-    local pos = fetch(uuid)
-    if pos then
-        return self.loaded[pos].name
+    if self:isExist(uuid) then
+        return self:getMeta(uuid).name
     end
     Log:Error('正在获取一个不存在的仓库的名称 (%s)',uuid)
     return nil
@@ -154,9 +138,8 @@ end
 ---@param uuid string
 ---@return string|nil
 function Repo:getLink(uuid)
-    local pos = fetch(uuid)
-    if pos then
-        return self.loaded[pos].metafile
+    if self:isExist(uuid) then
+        return self.loaded[uuid].metafile
     end
     Log:Error('正在获取一个不存在的仓库的自述文件链接 (%s)',uuid)
     return nil
@@ -166,24 +149,67 @@ end
 ---@return table
 function Repo:getAllEnabled()
     local rtn = {}
-    for pos,cont in pairs(self.loaded) do
-        if cont.enabled then
-            rtn[#rtn+1] = cont.uuid
+    for uuid,res in pairs(self.loaded) do
+        if res.enabled then
+            rtn[#rtn+1] = uuid
         end
     end
     return rtn
 end
 
----获取优先级最高的仓库的UUID
----@return string
-function Repo:getTop()
-    return self.loaded[fetchTop()].uuid
+---仓库是否已启用?
+---@param uuid string
+---@return boolean
+function Repo:isEnabled(uuid)
+    return self.loaded[uuid].enabled
+end
+
+---刷新优先级表
+function Repo:getPriorityList()
+    local added = {}
+    local all = self:getAllEnabled()
+    added = array.create(#all,0)
+    for n,uuid in pairs(all) do
+        local ck = array.fetch(self.priority,uuid)
+        if ck then
+            table.insert(added,ck,uuid)
+        else
+            table.insert(added,uuid)
+        end
+    end
+    self.priority = {}
+    for p,uuid in pairs(added) do
+        if uuid and uuid ~= 0 then
+            self.priority[#self.priority+1] = uuid
+        end
+    end
+    self:save()
+    return self.priority
+end
+
+---获取指定仓库优先级
+---@param uuid string
+---@return integer|nil
+function Repo:getPriority(uuid)
+    if not self:isExist(uuid) then
+        Log:Error('正在获取一个不存在的仓库的优先级 (%s)',uuid)
+        return nil
+    end
+    for p,_uuid in pairs(self:getPriorityList()) do
+        if _uuid == uuid then
+            return p
+        end
+    end
 end
 
 ---获取指定仓库自述文件
 ---@param uuid string
 ---@param updateMode? boolean
 function Repo:getMeta(uuid,updateMode)
+    if not self:isExist(uuid) then
+        Log:Error('正在获取不存在仓库的自述文件 (%s)',uuid)
+        return nil
+    end
     updateMode = updateMode or false
     local res = ''
     if not Fs:isExist(('%s%s/self.json'):format(self.dir,uuid)) then
@@ -191,7 +217,7 @@ function Repo:getMeta(uuid,updateMode)
     end
     if updateMode then
         Cloud:NewTask {
-            url = self.loaded[fetch(uuid)].metafile,
+            url = self.loaded[uuid].metafile,
             writefunction = function (str)
                 res = res .. str
             end
@@ -217,12 +243,17 @@ end
 ---更新指定仓库软件包列表
 ---@param uuid string
 ---@return boolean
-function Repo:update(uuid)
-    local repo = self.loaded[fetch(uuid)]
+function Repo:update(uuid,firstUpdate)
+    if not firstUpdate then
+        firstUpdate = not Fs:isExist(('%s%s/self.json'):format(self.dir,uuid))
+    end
+    local repo = self:getMeta(uuid)
+    if not repo then
+        return false
+    end
     Log:Info('正在更新仓库 %s ...',repo.name)
     Log:Info('正在拉取描述文件...')
     local meta
-    local firstUpdate = not Fs:isExist(('%s%s/self.json'):format(self.dir,uuid))
     if not firstUpdate then
         local old_meta = self:getMeta(uuid)
         meta = self:getMeta(uuid,true)
@@ -255,7 +286,7 @@ function Repo:update(uuid)
             local dbfile = Fs:open(dbpath,"wb")
             local url = cont.resource
             if not Cloud:parseLink(cont.resource) then
-                url = ('%s%s%s'):format(url_get_root(self.loaded[fetch(uuid)].metafile),'multi/',cont.resource)
+                url = ('%s%s%s'):format(url_get_root(self.loaded[uuid].metafile),'multi/',cont.resource)
             end
             local res = Cloud:NewTask {
                 url = url,
@@ -284,8 +315,8 @@ end
 ---@param name MultiFileType
 ---@param writefunction function
 function Repo:getMulti(name,writefunction)
-    local load = self.loaded[fetchTop()]
-    local meta = self:getMeta(load.uuid)
+    local uuid = self:getPriorityList()[1]
+    local meta = self:getMeta(uuid)
     if not meta then
         return false
     end
@@ -296,7 +327,7 @@ function Repo:getMulti(name,writefunction)
     end
     local url = item.file
     if not Cloud:parseLink(item.file) then
-        url = ('%s%s%s'):format(url_get_root(load.metafile),'multi/',item.file)
+        url = ('%s%s%s'):format(url_get_root(self.loaded[uuid].metafile),'multi/',item.file)
     end
     Cloud:NewTask {
         url = url,
