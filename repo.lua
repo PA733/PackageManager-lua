@@ -20,10 +20,6 @@ Repo = {
     priority = {}
 }
 
-local function url_get_root(url)
-    return url:sub(1,url:len()-url:reverse():find('/')+1)
-end
-
 function Repo:init()
     Fs:mkdir('data/repositories')
     if not Fs:isExist(self.dir_cfg) then
@@ -286,7 +282,7 @@ function Repo:update(uuid,firstUpdate)
             local dbfile = Fs:open(dbpath,"wb")
             local url = cont.resource
             if not Cloud:parseLink(cont.resource) then
-                url = ('%s%s%s'):format(url_get_root(self.loaded[uuid].metafile),'multi/',cont.resource)
+                url = ('%s%s%s'):format(Fs:getFileAtDir(self.loaded[uuid].metafile),'multi/',cont.resource)
             end
             local res = Cloud:NewTask {
                 url = url,
@@ -327,7 +323,7 @@ function Repo:getMultiResource(name)
     end
     local url = item.file
     if not Cloud:parseLink(item.file) then
-        url = ('%s%s%s'):format(url_get_root(self.loaded[uuid].metafile),'multi/',item.file)
+        url = ('%s%s%s'):format(Fs:getFileAtDir(self.loaded[uuid].metafile),'multi/',item.file)
     end
     return url
 end

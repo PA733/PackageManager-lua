@@ -19,31 +19,20 @@ local function directory(path)
     return path
 end
 
+---获取文件路径所在的目录路径
+---
+---例如 `C:/h/o/m/o.txt` --> `C:/h/o/m/`
+---@param url string
+---@return string
+function Fs:getFileAtDir(url)
+    return url:sub(1,url:len()-url:reverse():find('/')+1)
+end
+
 ---获取当前路径
 ---@return string
 function Fs:getCurrentPath()
     return directory(wf.currentdir())
 end
-
---[[
-function Fs:getDirectoryList(path,rootonly,nodir)
-    local list = {}
-    path = path or '.'
-    rootonly = rootonly or false
-    path = directory(path)
-    for file in wf.dir(path) do
-        if file ~= '.' and file ~= '..' then
-            local attr = wf.attributes(path..file)
-            if attr and attr.mode == 'directory' and not rootonly then
-                list = array.concat(list,self:getDirectoryList(path..file..dir_sym))
-            elseif attr.mode == 'file' then
-                list[#list+1] = path..file
-            end
-        end
-    end
-    return list
-end
-]]
 
 ---目录迭代器
 ---@param path? string
