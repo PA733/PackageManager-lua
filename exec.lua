@@ -65,8 +65,8 @@ Order.Install = Command:command 'install'
     local name = dict.name
     if name:sub(name:len()-3) == '.' .. ENV.INSTALLER_EXTNAME then
       -- local mode.
-
       Log:Info('正在读取即将安装的软件包列表...')
+      PackMgr:install(name)
     else
       -- networked mode.
     end
@@ -196,3 +196,9 @@ if #arg == 0 then
 end
 
 Command:parse(arg)
+
+----------------------------------------------------------
+-- |||||||||||||||| UnInitialization |||||||||||||||||| --
+----------------------------------------------------------
+
+Temp:free()

@@ -6,7 +6,7 @@
 
 require "logger"
 require "temp"
-require "filesystem" 
+require "filesystem"
 Wf = require "winfile"
 local Log = Logger:new('7Zip')
 
@@ -39,6 +39,10 @@ end
 ---@param path string 压缩文件路径
 ---@param topath string? 解压到路径, 若不提供则返回一个临时路径
 function P7zip:extract(path,topath)
+    if not Fs:isExist(path) then
+        Log:Error('解压缩失败，因为文件不存在。')
+        return
+    end
     topath = topath or Temp:getDirectory()
     return Wf.popen(('%s%s x -o"%s" -y "%s"'):format(self.path,'7za',topath,path)):read('*a'):find('Everything is Ok')~=nil,topath
 end
@@ -47,6 +51,10 @@ end
 ---@param path string 欲压缩文件(夹)路径
 ---@param topath string 压缩文件创建路径
 function P7zip:archive(path,topath)
+    if not Fs:isExist(path) then
+        Log:Error('压缩失败，因为文件(夹)不存在。')
+        return
+    end
     return Wf.popen(('%s%s a -y "%s" "%s"'):format(self.path,'7za',topath,path)):read('*a'):find('Everything is Ok') ~= nil
 end
 
