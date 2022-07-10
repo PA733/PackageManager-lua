@@ -77,6 +77,10 @@ function Cloud:NewTask(dict)
         Log:Error('正在解析无法识别的URL：%s',dict.url)
         return false
     end
+    if not Settings:get('repo.allow_insecure_protocol') and dict.url:sub(1,7) == 'http://' then
+        Log:Error('已禁用不安全的传输协议。')
+        return false
+    end
     local protocol = self.Protocol[name]
     if dict.payload then
         for k,v in pairs(dict.payload) do

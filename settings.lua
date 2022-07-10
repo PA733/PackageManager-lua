@@ -15,6 +15,9 @@ local cfg = {
     bds = {
         running_directory = ''
     },
+    repo = {
+        allow_insecure_protocol = false
+    },
     installer = {
         allow_unsafe_directory = false
     },
