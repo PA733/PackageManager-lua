@@ -11,7 +11,7 @@ require "filesystem"
 
 local Log = Logger:new('Settings')
 local cfg = {
-    version = Version:getNum(0),
+    format_version = Version:getNum(1),
     bds = {
         running_directory = ''
     },

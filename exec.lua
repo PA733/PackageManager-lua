@@ -122,7 +122,7 @@ Order.AddRepo = Command:command 'add-repo'
         Log:Error('解析描述文件时出错。')
         return
     end
-    if parsed_file.format_version ~= Version:getNum(1) then
+    if parsed_file.format_version ~= Version:getNum(2) then
       Log:Error('描述文件版本与管理器不匹配。')
       return
     end

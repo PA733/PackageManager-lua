@@ -7,15 +7,20 @@
 require "settings"
 require "filesystem"
 require "logger"
+require "cloud"
+require "json-safe"
+require "version"
 
 local Log = Logger:new('BDS')
 BDS = {
     dir = '',
+    dir_pdb_hash = 'data/pdb.json',
     version = {}
 }
 
 local function check_bds(path)
-    return Fs:isExist(path..'/bedrock_server.exe') or Fs:isExist(path..'/bedrock_server_mod.exe')
+    return (Fs:isExist(path..'/bedrock_server.exe') or Fs:isExist(path..'/bedrock_server_mod.exe'))
+            and Fs:isExist(path..'/bedrock_server.pdb')
 end
 
 local function search_bds(path)
@@ -34,6 +39,8 @@ local function search_bds(path)
 end
 
 function BDS:init()
+
+    --- Running Directory.
     local bdsdir = Settings:get('bds.running_directory')
     if bdsdir == '' or not check_bds(bdsdir) then
         local new_dir = ''
@@ -83,8 +90,71 @@ function BDS:init()
             end
         end
         Settings:set('bds.running_directory',new_dir)
+        bdsdir = new_dir
         Log:Info('设置成功')
     end
+    self.dir = bdsdir
+
+    local function update_pdb_hash_table()
+        local link = Repo:getMultiResource("PdbHashTable")
+        if not link then
+            Log:Error('获取 Ver-PdbHash 下载链接失败。')
+            return
+        end
+        local recv = ''
+        Cloud:NewTask {
+            url = link,
+            writefunction = function (str)
+                recv = recv .. str
+            end
+        }
+        local j = JSON:parse(recv)
+        if not j then
+            Log:Error('解析 Ver-PdbHash 对照表失败，可能是网络网络原因。')
+            return
+        end
+        if j.format_version ~= Version:getNum(4) then
+            Log:Error('Ver-PdbHash 对照表版本与管理器不匹配！')
+            return
+        end
+        Fs:writeTo(self.dir_pdb_hash,JSON:stringify(j))
+        return true
+    end
+
+    --- Running Version.
+    if not Fs:isExist(self.dir_pdb_hash) then
+        Log:Info('正在下载 Ver-PdbHash 对照表...')
+        if not update_pdb_hash_table() then
+            return false
+        end
+    end
+    local updated = false
+    while true do
+        local pdb = JSON:parse(Fs:readFrom(self.dir_pdb_hash))
+        if not pdb then
+            Log:Error('解析 Ver-PdbHash 对照表失败！')
+            return false
+        end
+        local stat,sha1 = SHA1:file(self.dir..'bedrock_server.pdb')
+        if not stat then
+            Log:Error('获取 bedrock_server.pdb 的SHA1失败！')
+            return false
+        end
+        self.version = pdb.pdb[sha1]
+        if not self.version then
+            if updated then
+                return false
+            else
+                Log:Error('找不到当前PDB对应的版本，尝试更新 Ver-PdbHash 对照表...')
+                update_pdb_hash_table()
+                updated = true
+            end
+        else
+            break
+        end
+    end
+    
+    return true
 end
 
 function BDS:getRunningDirectory()

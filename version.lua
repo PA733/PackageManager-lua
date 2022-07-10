@@ -6,30 +6,26 @@
 
 Version = {
     data = {},
-    count = 0,
     register = function (_,major,minor,revision)
         local a = Version
-        a.data[a.count] = {
+        table.insert(a.data,{
             major = major,
             minor = minor,
             revision = revision
-        }
-        a.count = a.count + 1
+        })
     end
 }
 
 Version.register('Main',1,0,0)
 Version.register('Repo',1,0,0)
-Version.register('Verification',1,0,0)
 Version.register('Installed',1,0,0)
 Version.register('PdbHashTab',1,0,0)
 
 ---@alias VersionType
 ---|> 1     # Main
 ---|  2     # Repo
----|  3     # Verification
----|  4     # Installed
----|  5     # PdbHashTable
+---|  3     # Installed
+---|  4     # PdbHashTable
 
 ---获取版本 (obj)
 ---@param num VersionType

@@ -311,29 +311,25 @@ end
 ---|>'"PdbHashTable"'   # PDB-SHA1版本对照表
 ---| '"SpeedTest"'      # 测速文件
 
----获取仓库提供的MiltiFile
+---获取仓库提供的MiltiFile的下载链接
 ---@param name MultiFileType
----@param writefunction function
-function Repo:getMulti(name,writefunction)
+---@return string|nil
+function Repo:getMultiResource(name)
     local uuid = self:getPriorityList()[1]
     local meta = self:getMeta(uuid)
     if not meta then
-        return false
+        return nil
     end
     local item = meta.multi[name]
     if not item.enable then
         Log:Error('当前仓库没有提供 %s。',name)
-        return false
+        return nil
     end
     local url = item.file
     if not Cloud:parseLink(item.file) then
         url = ('%s%s%s'):format(url_get_root(self.loaded[uuid].metafile),'multi/',item.file)
     end
-    Cloud:NewTask {
-        url = url,
-        writefunction = writefunction
-    }
-    return true
+    return url
 end
 
 return Repo
