@@ -157,10 +157,14 @@ function BDS:init()
     return true
 end
 
+---获取设定的BDS运行目录
+---@return string
 function BDS:getRunningDirectory()
     return self.dir
 end
 
+---获取BDS运行版本
+---@return table
 function BDS:getVersion()
     return self.version
 end

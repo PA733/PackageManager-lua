@@ -126,6 +126,21 @@ function table.setKey(tab,path,value)
 
 end
 
+function table.clone(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[table.clone(orig_key)] = table.clone(orig_value)
+        end
+        setmetatable(copy, table.clone(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
 function table.toDebugString(tab)
 	local rtn = 'Total: '..#tab
 	for k,v in pairs(tab) do

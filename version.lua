@@ -20,12 +20,16 @@ Version.register('Main',1,0,0)
 Version.register('Repo',1,0,0)
 Version.register('Installed',1,0,0)
 Version.register('PdbHashTab',1,0,0)
+Version.register('Package',1,0,0)
+Version.register('InstalledPackage',1,0,0)
 
 ---@alias VersionType
 ---|> 1     # Main
 ---|  2     # Repo
 ---|  3     # Installed
 ---|  4     # PdbHashTable
+---|  5     # Package
+---|  6     # InstalledPackage
 
 ---获取版本 (obj)
 ---@param num VersionType
