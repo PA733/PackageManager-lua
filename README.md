@@ -2,16 +2,17 @@
 The package manager for LiteLoaderBDS, made by Lua.
 
 ## TODOs
- - [x] Multi download protocol.
- - [x] Multi repoistroy design.
- - [ ] Package list using Sqlite3.
- - [ ] Install/Remove/Update/Purge software.
- - [ ] Verify package using SHA1.
+ - [x] <NET> Multi download protocol.
+ - [x] <NET> Multi repoistroy design.
+ - [x] <LOC> Install/Remove/Update/Purge software.
+ - [x] <LOC> Verify package using SHA1.
+ - [ ] <NET> Package list using Sqlite3, depent slove.
  - [ ] PluginPacker/RepoManager (standalone sw).
 
 ## Credits
- - [WinFile](https://github.com/cloudwu/luawinfile)
  - [Lua-cURL](https://github.com/Lua-cURL/Lua-cURLv3)
+ - [Json.lua](https://github.com/actboy168/json.lua)
+ - [ArgParse](https://github.com/mpeterv/argparse)
+ - [WinFile](https://github.com/cloudwu/luawinfile)
  - [LuaSQL](https://github.com/keplerproject/luasql)
- - [json.lua](https://github.com/actboy168/json.lua)
  - [7Zip](https://www.7-zip.org/)
