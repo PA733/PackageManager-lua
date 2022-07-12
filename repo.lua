@@ -103,7 +103,7 @@ function Repo:remove(uuid)
         Log:Error('若要删除 %s, 必须先启用另一个仓库。',self:getName(uuid))
         return false
     end
-    Fs:rmdir(self.dir..uuid,true)
+    Fs:rmdir(self.dir..uuid)
     self.loaded[uuid] = nil
     self:save()
     return true
@@ -326,6 +326,12 @@ function Repo:getMultiResource(name)
         url = ('%s%s%s'):format(Fs:getFileAtDir(self.loaded[uuid].metafile),'multi/',item.file)
     end
     return url
+end
+
+---根据关键词搜索
+---@param keyword string
+function Repo:search(keyword)
+    
 end
 
 return Repo

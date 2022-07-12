@@ -99,17 +99,10 @@ function Fs:mkdir(path)
 end
 
 ---删除目录
----@param path string 只能是空路径
----@param forceMode boolean 强制模式将使用命令行删除
+---@param path string
 ---@return boolean
-function Fs:rmdir(path,forceMode)
-    local m = wf.remove(directory(path))
-    if m then
-       return true
-    elseif forceMode then
-        return wf.execute(('rd "%s" /s /q'):format(path))
-    end
-    return false
+function Fs:rmdir(path)
+    return wf.execute(('rd "%s" /s /q'):format(path))
 end
 
 ---获取文件大小
@@ -130,7 +123,7 @@ end
 ---@param path string
 ---@return boolean
 function Fs:isExist(path)
-    return wf.attributes(path) ~= nil
+    return wf.attributes(self:removeSymbolEndOfPathIfHas(path)) ~= nil
 end
 
 ---文件是否内容一致
@@ -161,6 +154,18 @@ end
 ---@return file*
 function Fs:open(path,mode)
     return wf.open(path,mode)
+end
+
+---删除路径尾的 `/`
+---@param path string
+---@return string
+function Fs:removeSymbolEndOfPathIfHas(path)
+    if path:sub(path:len()) == dir_sym then
+        path = path:sub(1,path:len()-1)
+        return self:removeSymbolEndOfPathIfHas(path)
+    else
+        return path
+    end
 end
 
 return Fs

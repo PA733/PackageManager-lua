@@ -23,7 +23,7 @@ function Temp:init()
 end
 
 function Temp:free()
-    Fs:rmdir(self.baseDir,true)
+    Fs:rmdir(self.baseDir)
     Fs:mkdir(self.baseDir)
 end
 
