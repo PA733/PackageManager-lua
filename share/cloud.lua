@@ -207,7 +207,7 @@ function Cloud.Protocol.Http:get(url,payload)
             if Rec.max_size < strlen then
                 Rec.max_size = strlen
             end
-            io.write('\r',formatted,(' '):rep(Rec.max_size - strlen))
+            Log:Write('\r',formatted,(' '):rep(Rec.max_size - strlen))
         end,
         noprogress = payload.quiet,
         ssl_verifypeer = false,
@@ -215,7 +215,7 @@ function Cloud.Protocol.Http:get(url,payload)
     }
     local msf = easy:perform()
     if not payload.quiet then
-        io.write(('\r √ 100%% %s %.2fM/s  (%sM).'):format(('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..(' '):rep(15),'\n')
+        Log:Write(('\r √ 100%% %s %.2fM/s  (%sM).'):format(('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..(' '):rep(15),'\n')
     end
     easy:close()
     return true

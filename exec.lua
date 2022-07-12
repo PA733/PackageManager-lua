@@ -66,7 +66,7 @@ Order.Install = Command:command 'install'
     if name:sub(name:len()-3) == '.' .. ENV.INSTALLER_EXTNAME then
       -- local mode.
       Log:Info('正在读取即将安装的软件包列表...')
-      PackMgr:install(name)
+      PackMgr:install(name,dict.yes,dict.no_verify)
     else
       -- networked mode.
     end
@@ -76,29 +76,63 @@ Order.Install:flag('--no-verify','跳过软件包校验步骤')
 
 Order.Update = Command:command 'update'
   :summary '执行升级操作'
-  :description '此命令将先从仓库拉取最新软件包列表，然后检查本地已安装软件版本。'
+  :description '此命令将先从仓库拉取最新软件包列表，然后升级本地已安装软件版本。如果提供name，则单独升级指定软件包。'
   :action (function (dict)
+    local name = dict.name
+    if name then
+      if name:sub(name:len()-3) == '.' .. ENV.INSTALLER_EXTNAME then
+        -- local mode.
+        Log:Info('正在读取即将升级的软件包列表...')
+        PackMgr:update(name,dict.yes,dict.no_verify)
+      else
+        -- networked mode.
+      end
+      return
+    end
     for _,uuid in pairs(Repo:getAllEnabled()) do
       Repo:update(uuid)
     end
   end)
+Order.Update:argument('name','软件包名称'):args '?'
+Order.Install:flag('--no-verify','跳过软件包校验步骤')
 
 Order.Remove = Command:command 'remove'
   :summary '删除一个软件包'
   :description '此命令将删除指定软件包但不清除软件储存的数据。'
-Order.Remove:flag('-p --purge','同时清除数据（危险）。')
+  :action (function (dict)
+    local uuid = PackMgr:getUuidByName(dict.name)
+    if not uuid then
+      Log:Error('找不到软件包 %s，因此无法删除。',dict.name)
+      return
+    end
+    PackMgr:remove(uuid,dict.purge)
+  end)
+Order.Remove:flag('-p --purge','同时清除数据 (危险)')
 Order.Remove:argument('name','软件包名称')
 
 Order.Purge = Command:command 'purge'
   :summary '清除指定软件的数据'
-  :description '此命令将清除指定软件储存的数据，但不卸载该软件。'
+  :description '此命令将清除指定软件储存的数据 (危险)，但不卸载该软件。'
+  :action (function (dict)
+    local uuid = PackMgr:getUuidByName(dict.name)
+    if not uuid then
+      Log:Error('找不到软件包 %s，因此无法清除数据。',dict.name)
+      return
+    end
+    PackMgr:purge(uuid)
+  end)
 Order.Purge:argument('name','软件包名称')
 
 Order.List = Command:command 'list'
   :summary '列出已安装软件包'
   :description '此命令将列出所有已经安装的软件包'
   :action (function (dict)
-
+    local list = PackMgr:getInstalledList()
+    Log:Info('已安装 %s 个软件包',#list)
+    for n,uuid in pairs(list) do
+      local pkg = PackMgr:getInstalled(uuid)
+      Log:Info('[%d] %s - %s (%s)',n,pkg.name,pkg.version,uuid)
+    end
   end)
 
 Order.AddRepo = Command:command 'add-repo'

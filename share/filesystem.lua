@@ -116,7 +116,7 @@ end
 ---@param path string
 ---@return string
 function Fs:getType(path)
-    return wf.attributes(path).mode
+    return wf.attributes(self:removeSymbolEndOfPathIfHas(path)).mode
 end
 
 ---获取路径是否存在（不区分目录）
