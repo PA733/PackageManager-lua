@@ -137,7 +137,8 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
     L:Info('正在下载: %s',res.name)
     return Cloud:NewTask {
         url = res.downUrl,
-        writefunction = payload.writefunction
+        writefunction = payload.writefunction,
+        quiet = payload.quiet
     }
 
 end
@@ -215,7 +216,7 @@ function Cloud.Protocol.Http:get(url,payload)
     }
     local msf = easy:perform()
     if not payload.quiet then
-        Log:Write(('\r √ 100%% %s %.2fM/s  (%sM).'):format(('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))..(' '):rep(15),'\n')
+        Log:Write('\r √ 100%% %s %.2fM/s  (%sM).'..(' '):rep(15)..'\n',('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))
     end
     easy:close()
     return true

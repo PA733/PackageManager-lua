@@ -32,6 +32,7 @@ function P7zip:init()
         Log:Error('初始化失败，模块不可用。')
         return false
     end
+    return true
 
 end
 

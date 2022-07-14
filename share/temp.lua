@@ -18,13 +18,12 @@ local function getRandStr()
 end
 
 function Temp:init()
-    self:free()
-    return true
+    return self:free()
 end
 
 function Temp:free()
-    Fs:rmdir(self.baseDir)
-    Fs:mkdir(self.baseDir)
+    return Fs:rmdir(self.baseDir) and Fs:mkdir(self.baseDir)
+    
 end
 
 function Temp:getFile()

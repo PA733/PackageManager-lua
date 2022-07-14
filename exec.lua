@@ -39,12 +39,20 @@ Command = Parser() {
 
 Fs:mkdir('data')
 
-Temp:init()
-Settings:init()
-P7zip:init()
-Repo:init()
-PackMgr:init()
-BDS:init()
+local stat,msg = pcall(function ()
+  assert(Temp:init(),'TempHelper')
+  assert(Settings:init(),'ConfigManager')
+  assert(P7zip:init(),'7zHelper')
+  assert(Repo:init(),'RepoManager')
+  assert(PackMgr:init(),'LocalPackageManager')
+  assert(BDS:init(),'BDSHelper')
+end)
+if not stat then
+  Log:Error('%s 类初始化失败，请检查。',msg)
+  return
+end
+
+print(BDS:getVersion())
 
 if Settings:get('output.no_color') then
     Logger.setNoColor()
@@ -66,13 +74,12 @@ Order.Install = Command:command 'install'
     if name:sub(name:len()-3) == '.' .. ENV.INSTALLER_EXTNAME then
       -- local mode.
       Log:Info('正在读取即将安装的软件包列表...')
-      PackMgr:install(name,dict.yes,dict.no_verify)
+      PackMgr:install(name,dict.yes)
     else
       -- networked mode.
     end
   end)
 Order.Install:argument('name','软件包名称')
-Order.Install:flag('--no-verify','跳过软件包校验步骤')
 
 Order.Update = Command:command 'update'
   :summary '执行升级操作'
@@ -83,7 +90,7 @@ Order.Update = Command:command 'update'
       if name:sub(name:len()-3) == '.' .. ENV.INSTALLER_EXTNAME then
         -- local mode.
         Log:Info('正在读取即将升级的软件包列表...')
-        PackMgr:update(name,dict.yes,dict.no_verify)
+        PackMgr:update(name,dict.yes)
       else
         -- networked mode.
       end
@@ -94,7 +101,6 @@ Order.Update = Command:command 'update'
     end
   end)
 Order.Update:argument('name','软件包名称'):args '?'
-Order.Install:flag('--no-verify','跳过软件包校验步骤')
 
 Order.Remove = Command:command 'remove'
   :summary '删除一个软件包'

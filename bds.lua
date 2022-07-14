@@ -104,6 +104,7 @@ function BDS:init()
         local recv = ''
         Cloud:NewTask {
             url = link,
+            quiet = true,
             writefunction = function (str)
                 recv = recv .. str
             end
@@ -143,10 +144,13 @@ function BDS:init()
         self.version = pdb.pdb[sha1]
         if not self.version then
             if updated then
+                Log:Error('对照表无法对应您的BDS，可能是仓库还未更新，或您的 PDB 被修改过。')
                 return false
             else
                 Log:Error('找不到当前PDB对应的版本，尝试更新 Ver-PdbHash 对照表...')
-                update_pdb_hash_table()
+                if not update_pdb_hash_table() then
+                    return false
+                end
                 updated = true
             end
         else
