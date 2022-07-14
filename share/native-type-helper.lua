@@ -175,6 +175,14 @@ function array.create(length,defaultValue)
 	return rtn
 end
 
+function array.tonumber(original)
+	local rtn = {}
+	for a,n in pairs(original) do
+		rtn[a] = tonumber(n)
+	end
+	return rtn
+end
+
 --- other
 
 function toBool(any)

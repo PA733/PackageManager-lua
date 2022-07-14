@@ -97,7 +97,7 @@ function PackMgr:verify(path,pkgInfo,updateMode)
         Log:Error('软件包与已安装软件有重名，安全检查失败。')
         return false
     end
-    if not BDS:getVersion():match(pkgInfo.applicable_game_version) then
+    if not ApplicableVersionChecker:check(BDS:getVersion(),pkgInfo.applicable_game_version) then
         Log:Error('软件包与当前服务端版本不适配，安全检查失败。')
         return false
     end
