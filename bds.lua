@@ -164,7 +164,7 @@ function BDS:getRunningDirectory()
 end
 
 ---获取BDS运行版本
----@return table
+---@return string
 function BDS:getVersion()
     return self.version
 end

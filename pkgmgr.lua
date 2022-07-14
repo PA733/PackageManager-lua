@@ -97,6 +97,10 @@ function PackMgr:verify(path,pkgInfo,updateMode)
         Log:Error('软件包与已安装软件有重名，安全检查失败。')
         return false
     end
+    if not BDS:getVersion():match(pkgInfo.applicable_game_version) then
+        Log:Error('软件包与当前服务端版本不适配，安全检查失败。')
+        return false
+    end
     local stopAndFailed = false
     local allow_unsafe = Settings:get('installer.allow_unsafe_directory') or is_in_whitelist(pkgInfo.uuid)
     Fs:iterator(path..'content/',function (nowpath,file)
@@ -131,11 +135,9 @@ end
 ---安装lpk软件包, 不处理依赖
 ---@param lpkdir string 软件包路径
 ---@param noask? boolean 是否跳过在安装过程中询问
----@param noverify? boolean 是否跳过校验包
 ---@return boolean
-function PackMgr:install(lpkdir,noask,noverify)
+function PackMgr:install(lpkdir,noask)
     noask = noask or false
-    noverify = noverify or false
     local path,pkgInfo = self:parse(lpkdir)
     if not (path and pkgInfo) then
         return false
@@ -144,7 +146,7 @@ function PackMgr:install(lpkdir,noask,noverify)
         Log:Error('软件包 %s 已安装，不可以重复安装。',pkgInfo.uuid)
         return false
     end
-    if not noverify and not self:verify(path,pkgInfo) then
+    if not self:verify(path,pkgInfo) then
         return false
     end
     Log:Info('%s (%s) - %s',pkgInfo.name,pkgInfo.version,pkgInfo.contributors)
@@ -214,11 +216,9 @@ end
 ---升级软件包, 不处理依赖
 ---@param lpkdir string
 ---@param noask? boolean 是否跳过在安装过程中询问
----@param noverify? boolean 是否跳过校验包
 ---@return boolean
-function PackMgr:update(lpkdir,noask,noverify)
+function PackMgr:update(lpkdir,noask)
     noask = noask or false
-    noverify = noverify or false
     local path,pkgInfo = self:parse(lpkdir)
     if not (path and pkgInfo) then
         return false
@@ -232,7 +232,7 @@ function PackMgr:update(lpkdir,noask,noverify)
         Log:Info('不可以向旧版本升级')
         return false
     end
-    if not noverify and not self:verify(path,pkgInfo,true) then
+    if not self:verify(path,pkgInfo,true) then
         return false
     end
     Log:Info('%s (%s->%s) - %s',pkgInfo.name,old_IDPkg.version,pkgInfo.version,pkgInfo.contributors)
