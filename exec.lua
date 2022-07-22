@@ -217,11 +217,18 @@ Order.RmRepo = Command:command 'rm-repo'
   :summary '删除一个仓库'
   :description '此命令将删除现存的仓库'
   :action (function (dict)
+    if not dict.uuid then
+      local plzUUID = OrderHelper:pleaseUUID()
+      if not plzUUID then
+        return
+      end
+      dict.uuid = plzUUID
+    end
     if Repo:remove(dict.uuid) then
       Log:Info('仓库（%s）已被删除',dict.uuid)
     end
   end)
-Order.RmRepo:argument('uuid','目标仓库的UUID')
+Order.RmRepo:argument('uuid','目标仓库的UUID'):args '?'
 
 Order.ListRepo = Command:command 'list-repo'
   :summary '列出所有仓库'
@@ -247,9 +254,16 @@ Order.SetRepo = Command:command 'set-repo'
   :summary '重设使用的仓库'
   :description '此命令将重设仓库开关状态并更新软件包列表。'
   :action (function (dict)
+    if not dict.uuid or dict.uuid == '?' then
+      local plzUUID = OrderHelper:pleaseUUID()
+      if not plzUUID then
+        return
+      end
+      dict.uuid = plzUUID
+    end
     Repo:setStatus(dict.uuid,dict.status == 'enable')
   end)
-Order.SetRepo:argument('uuid','目标仓库的UUID。')
+Order.SetRepo:argument('uuid','目标仓库的UUID。'):args '?'
 Order.SetRepo:argument('status','开或关')
   :choices {'enable','disable'}
 
@@ -257,6 +271,13 @@ Order.MoveRepo = Command:command 'move-repo'
   :summary '设置仓库优先级'
   :description '此命令将重设仓库优先级。'
   :action (function (dict)
+    if not dict.uuid or dict.uuid == '?' then
+      local plzUUID = OrderHelper:pleaseUUID(true)
+      if not plzUUID then
+        return
+      end
+      dict.uuid = plzUUID
+    end
     if not Repo:isEnabled(dict.uuid) then
       Log:Error('目标仓库不存在或未开启。')
       return
@@ -264,7 +285,7 @@ Order.MoveRepo = Command:command 'move-repo'
     Repo:movePriority(dict.uuid,dict.action=='down')
     Log:Info('已更新仓库优先级。')
   end)
-Order.MoveRepo:argument('uuid','目标仓库的UUID。')
+Order.MoveRepo:argument('uuid','目标仓库的UUID。'):args '?'
 Order.MoveRepo:argument('action','提到最前或拉到最后')
   :choices {'up','down'}
 
@@ -272,6 +293,13 @@ Order.ResetRepoGroup = Command:command('repo-reset-group')
   :summary '重设仓库资源组'
   :description '此命令将打印可用资源组列表，并允许重新选择资源组。'
   :action (function (dict)
+    if not dict.uuid then
+      local plzUUID = OrderHelper:pleaseUUID(true)
+      if not plzUUID then
+        return
+      end
+      dict.uuid = plzUUID
+    end
     if not Repo:isExist(dict.uuid) then
       Log:Error('不存在的仓库！')
       return
@@ -295,7 +323,7 @@ Order.ResetRepoGroup = Command:command('repo-reset-group')
     Log:Info('设置成功。')
 
   end)
-Order.ResetRepoGroup:argument('uuid','目标仓库UUID。')
+Order.ResetRepoGroup:argument('uuid','目标仓库UUID。'):args '?'
 Order.ResetRepoGroup:flag('--update','更新模式')
 
 Order.ListProtocol = Command:command 'list-protocol'
@@ -310,6 +338,32 @@ Order.ListProtocol = Command:command 'list-protocol'
   end)
 
 Command:flag('-y --yes','许可当前执行的命令发出的所有询问。')
+
+----------------------------------------------------------
+-- ||||||||||||||||| Command Helper ||||||||||||||||| --
+----------------------------------------------------------
+
+OrderHelper = {}
+
+function OrderHelper:pleaseUUID(shouldEnabled)
+  local list
+  if shouldEnabled then
+    list = Repo:getAllEnabled()
+  else
+    list = Repo:getAll()
+  end
+  Log:Print('请选择仓库以提供 UUID 参数:')
+  for n,uuid in pairs(list) do
+    Log:Print('[%s] >> %s - [%s]',n,Repo:getName(uuid),uuid)
+  end
+  Log:Write('(%d-%d) > ',1,#list)
+  local chosed = list[tonumber(io.read())]
+  if not chosed then
+    Log:Error('输入错误！')
+    return nil
+  end
+  return chosed
+end
 
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Executor ||||||||||||||||| --
