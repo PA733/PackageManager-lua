@@ -21,10 +21,10 @@ require "temp"
 require "environment"
 require "pkgmgr"
 require "bds"
+require "filesystem"
 
-Fs = require "filesystem"
 Parser = require "argparse"
-local Log = Logger:new('Main')
+local Log = Logger:new('LPM')
 
 ----------------------------------------------------------
 -- |||||||||||||||||| Initialization |||||||||||||||||| --
@@ -135,7 +135,9 @@ Order.List = Command:command 'list'
     Log:Info('已安装 %s 个软件包',#list)
     for n,uuid in pairs(list) do
       local pkg = PackMgr:getInstalled(uuid)
-      Log:Info('[%d] %s - %s (%s)',n,pkg.name,pkg.version,uuid)
+      if pkg then
+        Log:Info('[%d] %s - %s (%s)',n,pkg.name,pkg.version,uuid)
+      end
     end
   end)
 
@@ -164,7 +166,41 @@ Order.AddRepo = Command:command 'add-repo'
       Log:Error('描述文件版本与管理器不匹配。')
       return
     end
-    if not Repo:add(parsed_file.identifier,dict.link,not(dict.no_update)) then
+    local group
+    local ver = BDS:getVersion()
+    local can_use = {}
+    local use_latest = false
+    for _,gp in pairs(parsed_file.root.groups) do
+      if ApplicableVersionChecker:check(ver,gp.required_game_version) then
+        if gp.name == 'latest' and BDS:isLatest() then
+            use_latest = true
+          break
+        end
+        can_use[#can_use+1] = gp.name
+      end
+    end
+    if use_latest then
+      group = 'latest'
+    elseif #can_use == 1 then
+      group = parsed_file.root.groups[can_use[1]].name
+    elseif #can_use == 0 then
+      Log:Error('当前选择的仓库无法适配当前的BDS版本。')
+      return
+    else
+      Log:Print('当前仓库有以下可以选择的资源组：')
+      for n,name in pairs(can_use) do
+        Log:Print('[%d] >> %s',n,name)
+      end
+      Log:Write('(%d-%d) > ',1,#can_use)
+      local chosed = can_use[tonumber(io.read())]
+      if chosed then
+        group = chosed
+      else
+        Log:Error('输入错误！')
+        return
+      end
+    end
+    if not Repo:add(parsed_file.identifier,dict.link,group,not(dict.no_update)) then
         Log:Error('仓库添加失败')
         return
     end
@@ -192,13 +228,18 @@ Order.ListRepo = Command:command 'list-repo'
   :description '此命令将列出所有已配置的仓库。'
   :action (function (dict)
     local repo_list = Repo:getAll()
-    Log:Info('已装载 %s 个仓库',#repo_list)
-    for n,uuid in pairs(repo_list) do
-        local a = Repo:getName(uuid)
-        if Repo:isEnabled(uuid) then
-            a = '(Enabled) '..a
-        end
-        Log:Info('%s. %s - [%s]',n,a,uuid)
+    local enabled,disabled = Repo:getPriorityList(),Repo:getAll()
+    Log:Info('已配置 %s 个仓库。',#repo_list)
+    Log:Info('已启用 %s 个仓库, 它们的优先级为:',#enabled)
+    for n,uuid in pairs(enabled) do
+      array.remove(disabled,uuid)
+      Log:Info('%s. %s - [%s]',n,Repo:getName(uuid),uuid)
+    end
+    if #disabled ~= 0 then
+      Log:Info('已禁用 %s 个仓库',#disabled)
+      for n,uuid in pairs(disabled) do
+        Log:Info('%s. %s - [%s]',n,Repo:getName(uuid),uuid)
+      end
     end
 end)
 
@@ -211,6 +252,21 @@ Order.SetRepo = Command:command 'set-repo'
 Order.SetRepo:argument('uuid','目标仓库的UUID。')
 Order.SetRepo:argument('status','开或关')
   :choices {'enable','disable'}
+
+Order.MoveRepo = Command:command 'move-repo'
+  :summary '设置仓库优先级'
+  :description '此命令将重设仓库优先级。'
+  :action (function (dict)
+    if not Repo:isEnabled(dict.uuid) then
+      Log:Error('目标仓库不存在或未开启。')
+      return
+    end
+    Repo:movePriority(dict.uuid,dict.action=='down')
+    Log:Info('已更新仓库优先级。')
+  end)
+Order.MoveRepo:argument('uuid','目标仓库的UUID。')
+Order.MoveRepo:argument('action','提到最前或拉到最后')
+  :choices {'up','down'}
 
 Order.ListProtocol = Command:command 'list-protocol'
   :summary '列出下载所有组件'

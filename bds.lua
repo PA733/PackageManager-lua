@@ -133,8 +133,9 @@ function BDS:init()
         end
     end
     local updated = false
+    local pdb
     while true do
-        local pdb = JSON:parse(Fs:readFrom(self.dir_pdb_hash))
+        pdb = JSON:parse(Fs:readFrom(self.dir_pdb_hash))
         if not pdb then
             Log:Error('解析 Ver-PdbHash 对照表失败！')
             return false
@@ -160,7 +161,15 @@ function BDS:init()
             break
         end
     end
-    
+
+    --- Is latest.
+    self.isLatestVersion = true
+    for _,ver in pairs(pdb.pdb) do
+        if ApplicableVersionChecker:check(self.version,'<'..ver) then
+            self.isLatestVersion = false
+            break
+        end
+    end
     return true
 end
 
@@ -174,6 +183,12 @@ end
 ---@return string
 function BDS:getVersion()
     return self.version
+end
+
+---是否是最新版本BDS
+---@return boolean
+function BDS:isLatest()
+    return self.isLatestVersion
 end
 
 return BDS

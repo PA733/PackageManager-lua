@@ -183,6 +183,10 @@ function array.tonumber(original)
 	return rtn
 end
 
+function array.remove(origin,element)
+	return table.remove(origin,array.fetch(origin,element))
+end
+
 --- other
 
 function toBool(any)

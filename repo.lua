@@ -54,18 +54,18 @@ end
 ---@param metafile string 自述文件下载链接
 ---@param isEnabled? boolean
 ---@return boolean
-function Repo:add(uuid,metafile,isEnabled)
+function Repo:add(uuid,metafile,group,isEnabled)
     isEnabled = isEnabled or true
     if self:isExist(uuid) then
         Log:Error('该仓库与现有的某个仓库的UUID冲突，可能重复添加了？')
         return false
     end
     self.loaded[uuid] = {
+        using = group,
         metafile = metafile,
         enabled = isEnabled
     }
     self:save()
-    Fs:mkdir(self.dir..uuid..'/classes')
     if isEnabled then
         self:update(uuid,true)
     end
@@ -157,6 +157,9 @@ end
 ---@param uuid string
 ---@return boolean
 function Repo:isEnabled(uuid)
+    if not self:isExist(uuid) then
+        return false
+    end
     return self.loaded[uuid].enabled
 end
 
@@ -181,6 +184,23 @@ function Repo:getPriorityList()
     end
     self:save()
     return self.priority
+end
+
+---设定仓库优先级
+---@param uuid string
+---@param isDown? boolean
+---@return boolean
+function Repo:movePriority(uuid,isDown)
+    if not self:isEnabled(uuid) then
+        return false
+    end
+    array.remove(self.priority,uuid)
+    if not isDown then
+        table.insert(self.priority,1,uuid)
+    else
+        table.insert(self.priority,uuid)
+    end
+    return true
 end
 
 ---获取指定仓库优先级
@@ -208,7 +228,7 @@ function Repo:getMeta(uuid,updateMode)
     end
     updateMode = updateMode or false
     local res = ''
-    if not Fs:isExist(('%s%s/self.json'):format(self.dir,uuid)) then
+    if not Fs:isExist(('%s%s.repo'):format(self.dir,uuid)) then
         updateMode = true
     end
     if updateMode then
@@ -219,7 +239,7 @@ function Repo:getMeta(uuid,updateMode)
             end
         }
     else
-        res = Fs:readFrom(('%s%s/self.json'):format(self.dir,uuid))
+        res = Fs:readFrom(('%s%s.repo'):format(self.dir,uuid))
     end
     local obj = JSON:parse(res)
     if not obj then
@@ -231,7 +251,7 @@ function Repo:getMeta(uuid,updateMode)
         return nil
     end
     if updateMode then
-        Fs:writeTo(('%s%s/self.json'):format(self.dir,uuid),JSON:stringify(obj,true))
+        Fs:writeTo(('%s%s.repo'):format(self.dir,uuid),JSON:stringify(obj,true))
     end
     return obj
 end
@@ -241,7 +261,7 @@ end
 ---@return boolean
 function Repo:update(uuid,firstUpdate)
     if not firstUpdate then
-        firstUpdate = not Fs:isExist(('%s%s/self.json'):format(self.dir,uuid))
+        firstUpdate = not Fs:isExist(('%s%s.repo'):format(self.dir,uuid))
     end
     local repo = self:getMeta(uuid)
     if not repo then
@@ -297,7 +317,7 @@ function Repo:update(uuid,firstUpdate)
         end
     end
     if not hasErr then
-        Fs:writeTo(('%s%s/self.json'):format(self.dir,uuid),JSON:stringify(meta))
+        Fs:writeTo(('%s%s.repo'):format(self.dir,uuid),JSON:stringify(meta))
         return true
     end
     return false
