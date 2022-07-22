@@ -52,8 +52,6 @@ if not stat then
   return
 end
 
-print(BDS:getVersion())
-
 if Settings:get('output.no_color') then
     Logger.setNoColor()
 end

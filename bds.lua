@@ -14,8 +14,7 @@ require "version"
 local Log = Logger:new('BDS')
 BDS = {
     dir = '',
-    dir_pdb_hash = 'data/pdb.json',
-    version = {}
+    dir_pdb_hash = 'data/pdb.json'
 }
 
 local function check_bds(path)
@@ -95,7 +94,7 @@ function BDS:init()
     end
     self.dir = bdsdir
 
-    local function update_pdb_hash_table()
+    local function update_pdb_hash_table(check_file_updated_time)
         local link = Repo:getMultiResource("PdbHashTable")
         if not link then
             Log:Error('获取 Ver-PdbHash 下载链接失败。')
@@ -116,6 +115,10 @@ function BDS:init()
         end
         if j.format_version ~= Version:getNum(4) then
             Log:Error('Ver-PdbHash 对照表版本与管理器不匹配！')
+            return
+        end
+        if check_file_updated_time and j.updated < check_file_updated_time then
+            Log:Error('仓库中下载的 Ver-PdbHash 对照表比本地的更旧。')
             return
         end
         Fs:writeTo(self.dir_pdb_hash,JSON:stringify(j))
@@ -148,7 +151,7 @@ function BDS:init()
                 return false
             else
                 Log:Error('找不到当前PDB对应的版本，尝试更新 Ver-PdbHash 对照表...')
-                if not update_pdb_hash_table() then
+                if not update_pdb_hash_table(pdb.updated) then
                     return false
                 end
                 updated = true

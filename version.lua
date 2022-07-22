@@ -63,20 +63,20 @@ end
 
 ApplicableVersionChecker = {}
 
----检查`ver1`是否符合`method`
+---检查`ver1`是否符合`method`  
+-- **比较运算符**  
+-- *大于*＞ *小于*＜ *等于*＝ *大于等于*≥ *小于等于*≤  
+-- Tips: 等于号可以省略  
+-- e.g. "> 1.19.0" 相当于 major >= 1 || minor == 1 and major >=19 || minor == 1 and major == 10 and revision > 0  
+-- **范围运算符**  
+-- *区间* 1\~22  
+-- e.g "1.19.1\~22" 相当于 major == 1 && minor == 19 && 1 <= revision <= 22  
+-- **特殊运算符**  
+-- *全部* *  
 ---@param ver1 string
 ---@param method string
 ---@return boolean
 function ApplicableVersionChecker:check(ver1,method)
-    -- 比较运算符:
-    -- [大于]＞ [小于]＜ [等于]＝ [大于等于]≥ [小于等于]≤
-    -- tips: 等于号可以省略
-    -- e.g. "> 1.19.0" 相当于 major >= 1 || minor == 1 and major >=19 || minor == 1 and major == 10 and revision > 0
-    -- 范围运算符:
-    -- [区间]1~22
-    -- e.g "1.19.1~22" 相当于 major == 1 && minor == 19 && 1 <= revision <= 22
-    -- 特殊运算符:
-    -- [全部]*
     local sym = method:sub(1,1)
     if sym == '*' then
         return true
