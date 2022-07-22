@@ -4,9 +4,6 @@
 
 --]] ----------------------------------------
 
-require "native-type-helper"
-require "logger"
-
 local Log = Logger:new('Version')
 Version = {
     data = {},

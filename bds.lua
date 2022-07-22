@@ -4,13 +4,6 @@
 
 --]] ----------------------------------------
 
-require "settings"
-require "filesystem"
-require "logger"
-require "cloud"
-require "json-safe"
-require "version"
-
 local Log = Logger:new('BDS')
 BDS = {
     dir = '',

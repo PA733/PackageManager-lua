@@ -4,16 +4,6 @@
 
 --]] ----------------------------------------
 
-require "logger"
-require "json-safe"
-require "filesystem"
-require "environment"
-require "sha1"
-require "settings"
-require "version"
-require "native-type-helper"
-require "7zip"
-
 local Log = Logger:new('PackMgr')
 PackMgr = {
     dir = 'data/installed/',

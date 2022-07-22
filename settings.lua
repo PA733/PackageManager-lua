@@ -4,11 +4,6 @@
 
 --]] ----------------------------------------
 
-require "version"
-require "logger"
-require "json-safe"
-require "filesystem"
-
 local Log = Logger:new('Settings')
 local cfg = {
     format_version = Version:getNum(1),

@@ -4,13 +4,6 @@
 
 --]] ----------------------------------------
 
-require "json-safe"
-require "filesystem"
-require "version"
-require "logger"
-require "cloud"
-require "native-type-helper"
-
 local Log = Logger:new('Repo')
 Repo = {
     dir_cfg = 'data/repo.json',
