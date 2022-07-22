@@ -323,6 +323,29 @@ function Repo:update(uuid,firstUpdate)
     return false
 end
 
+function Repo:getAvailableGroups(uuid,updateMode)
+    local meta = self:getMeta(uuid,updateMode)
+    if not meta then
+        return nil
+    end
+    local ver = BDS:getVersion()
+    local can_use = {}
+    for _,gp in pairs(meta.root.groups) do
+      if ApplicableVersionChecker:check(ver,gp.required_game_version) then
+        can_use[#can_use+1] = gp.name
+      end
+    end
+    return can_use
+end
+
+function Repo:setGroup(uuid,name)
+    if not self:isExist(uuid) then
+        return false
+    end
+    self.loaded[uuid].using = name
+    return self:save()
+end
+
 ---@alias MultiFileType
 ---|>'"PdbHashTable"'   # PDB-SHA1版本对照表
 ---| '"SpeedTest"'      # 测速文件

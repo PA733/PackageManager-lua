@@ -268,6 +268,36 @@ Order.MoveRepo:argument('uuid','目标仓库的UUID。')
 Order.MoveRepo:argument('action','提到最前或拉到最后')
   :choices {'up','down'}
 
+Order.ResetRepoGroup = Command:command('repo-reset-group')
+  :summary '重设仓库资源组'
+  :description '此命令将打印可用资源组列表，并允许重新选择资源组。'
+  :action (function (dict)
+    if not Repo:isExist(dict.uuid) then
+      Log:Error('不存在的仓库！')
+      return
+    end
+    local list = Repo:getAvailableGroups(dict.uuid,dict.update)
+    if not list or #list < 1 then
+      Log:Error('当前仓库没有资源分组适合您的BDS。')
+      return
+    end
+    Log:Print('请选择要使用的资源分组...')
+    for n,name in pairs(list) do
+      Log:Print('[%s] >> %s',n,name)
+    end
+    Log:Write('(%d-%d) > ',1,#list)
+    local chosed = list[tonumber(io.read())]
+    if not chosed then
+      Log:Error('输入错误！')
+      return
+    end
+    Repo:setGroup(dict.uuid,chosed)
+    Log:Info('设置成功。')
+
+  end)
+Order.ResetRepoGroup:argument('uuid','目标仓库UUID。')
+Order.ResetRepoGroup:flag('--update','更新模式')
+
 Order.ListProtocol = Command:command 'list-protocol'
   :summary '列出下载所有组件'
   :description '此命令将列出所有已安装的下载组件。'
