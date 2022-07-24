@@ -16,7 +16,6 @@ require "argparse"
 require "cloud"
 require "cURL"
 require "filesystem"
-require "i18n"
 require "native-type-helper"
 require "sha1"
 require "temp"
@@ -24,16 +23,17 @@ require "temp"
 require "environment"
 require "version"
 require "settings"
+require "i18n"
 require "bds"
 require "pkgmgr"
 require "repo"
 
-Parser = require "argparse"
-local Log = Logger:new('LPM')
-
 ----------------------------------------------------------
 -- |||||||||||||||||| Initialization |||||||||||||||||| --
 ----------------------------------------------------------
+
+local Parser = require "argparse"
+local Log = Logger:new('LPM')
 
 Order = {}
 Command = Parser() {
@@ -384,4 +384,5 @@ Command:parse(arg)
 -- |||||||||||||||| UnInitialization |||||||||||||||||| --
 ----------------------------------------------------------
 
+Repo:uninit()
 Temp:free()

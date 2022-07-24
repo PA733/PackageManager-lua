@@ -4,10 +4,14 @@
 
 --]] ----------------------------------------
 
+local driver = require "luasql.sqlite3"
+local env = driver.sqlite3()
+local package_db
 local Log = Logger:new('Repo')
 Repo = {
     dir_cfg = 'data/repo.json',
     dir = 'data/repositories/',
+    dir_pkg = 'data/packages.db',
     loaded = {},
     --- use `self:getPriorityList()` to get me!
     priority = {}
@@ -23,7 +27,14 @@ function Repo:init()
         })
     end
     self.loaded = JSON:parse(Fs:readFrom(self.dir_cfg)).repos
+    package_db = env:connect(self.dir_pkg)
     return self.loaded ~= nil
+end
+
+function Repo:uninit()
+    package_db:close()
+    env:close()
+    driver:close()
 end
 
 ---保存仓库列表
@@ -249,6 +260,21 @@ function Repo:getMeta(uuid,updateMode)
     return obj
 end
 
+---获取正在使用的资源组对象
+---@param uuid string
+function Repo:getUsingGroup(uuid)
+    if self:isExist(uuid) then
+        return nil
+    end
+    local using = self.loaded[uuid].using
+    for _,cont in pairs(self:getMeta(uuid).root.groups) do
+        if cont.name == using then
+            return cont
+        end
+    end
+    return nil
+end
+
 ---更新指定仓库软件包列表
 ---@param uuid string
 ---@return boolean
@@ -281,17 +307,23 @@ function Repo:update(uuid,firstUpdate)
         meta = self:getMeta(uuid,true)
         if not meta then
             return false
-        end
-        if meta.status == 1 then
+        elseif meta.status == 1 then
             Log:Warn('无法更新 %s (%s)，因为该仓库正在维护。',meta.name,uuid)
             return false
         end
     end
     local hasErr = false
-    for n,cont in pairs(meta.root.classes) do
-        if cont.broadcast then
-            local dbpath = ('%s%s/classes/%s.db'):format(self.dir,uuid,cont.name)
-            Log:Info('正在下载分类 %s 数据库...',cont.name)
+    local group = self:getUsingGroup(uuid)
+    if not group then
+        Log:Error('获取正在使用的资源组时出现错误！')
+        return false
+    end
+    local downloaded = {}
+    Log:Info('正在开始下载...')
+    for n,cont in pairs(group.classes) do
+        if not cont:match("[%c,%p]") then
+            local dbpath = Temp:getFile()
+            Log:Info('(%d/%d) 正在下载分类 %s 的数据库...',n,#group.classes,cont.name)
             local dbfile = Fs:open(dbpath,"wb")
             local url = cont.resource
             if not Cloud:parseLink(cont.resource) then
@@ -303,19 +335,69 @@ function Repo:update(uuid,firstUpdate)
             }
             dbfile:close()
             if not res then
-                Log:Error('分类 %s 的数据库下载失败！',cont.name)
+                Log:Error('(%d/%d) 分类 %s 的数据库下载失败！',n,#group.classes,cont.name)
                 hasErr = true
-                Fs:remove(dbpath)
+                break
             end
+            downloaded[#downloaded+1] = {cont.name,dbfile}
+        else
+            Log:Warn('(%d/%d) 分类 %s 存在不合法字符，跳过...',n,#group.classes,cont.name)
         end
     end
     if not hasErr then
-        Fs:writeTo(('%s%s.repo'):format(self.dir,uuid),JSON:stringify(meta))
-        return true
+        Log:Info('正在导入数据库...')
+        for n,cont in pairs(downloaded) do
+            local db = env:connect(cont[2])
+            local result = db:execute[[
+                SELECT * FROM packages
+            ]]
+            local tblName = ('%s__%s'):format(uuid,cont[1])
+            self:removeClassFromDB(tblName)
+            local name,sw_uuid,version,contributors,description,selflink = result:fetch()
+            while name do
+                self:appendToDB(tblName,name,sw_uuid,version,contributors,description,selflink)
+                name,sw_uuid,version,contributors,description,selflink = result:fetch()
+            end
+        end
+        if not hasErr then
+            Fs:writeTo(('%s%s.repo'):format(self.dir,uuid),JSON:stringify(meta))
+            Log:Info('仓库自述文件已更新。')
+            return true
+        else
+            Log:Error('导入数据库时出错！')
+        end
+    else
+        Log:Error('下载文件时出错!')
     end
     return false
 end
 
+function Repo:removeClassFromDB(tableName)
+    package_db:execute(([[
+        DROP TABLE "%s"
+    ]]):format(tableName))
+end
+
+function Repo:appendToDB(tableName,name,uuid,version,contributors,description,selflink)
+    package_db:execute(([[	
+        CREATE TABLE IF NOT EXISTS "%s"(
+            name TEXT NOT NULL,
+            uuid TEXT NOT NULL,
+            version TEXT NOT NULL,
+            contributors TEXT NOT NULL,
+            description TEXT NOT NULL,
+            download TEXT NOT NULL
+        )
+    ]]):format(tableName))
+    package_db:execute(([[
+        INSERT INTO "%s" VALUES('%s','%s','%s','%s','%s','%s')
+    ]]):format(name,uuid,version,contributors,description,selflink))
+end
+
+---获取可用资源组
+---@param uuid string
+---@param updateMode? boolean
+---@return table|nil
 function Repo:getAvailableGroups(uuid,updateMode)
     local meta = self:getMeta(uuid,updateMode)
     if not meta then
@@ -331,6 +413,9 @@ function Repo:getAvailableGroups(uuid,updateMode)
     return can_use
 end
 
+---设置资源组
+---@param uuid string
+---@param name string
 function Repo:setGroup(uuid,name)
     if not self:isExist(uuid) then
         return false
