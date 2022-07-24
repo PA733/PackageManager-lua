@@ -16,6 +16,7 @@ Repo = {
     --- use `self:getPriorityList()` to get me!
     priority = {}
 }
+PkgDB = {}
 
 function Repo:init()
     Fs:mkdir('data/repositories')
@@ -107,6 +108,8 @@ function Repo:remove(uuid)
         Log:Error('若要删除 %s, 必须先启用另一个仓库。',self:getName(uuid))
         return false
     end
+    Log:Info('正在清除软件包目录...')
+    PkgDB:purge(uuid)
     Fs:rmdir(self.dir..uuid)
     self.loaded[uuid] = nil
     self:save()
@@ -351,11 +354,10 @@ function Repo:update(uuid,firstUpdate)
             local result = db:execute[[
                 SELECT * FROM packages
             ]]
-            local tblName = ('%s__%s'):format(uuid,cont[1])
-            self:removeClassFromDB(tblName)
+            PkgDB:remove(uuid,cont[1])
             local name,sw_uuid,version,contributors,description,selflink = result:fetch()
             while name do
-                self:appendToDB(tblName,name,sw_uuid,version,contributors,description,selflink)
+                PkgDB:append(uuid,cont[1],name,sw_uuid,version,contributors,description,selflink)
                 name,sw_uuid,version,contributors,description,selflink = result:fetch()
             end
         end
@@ -370,28 +372,6 @@ function Repo:update(uuid,firstUpdate)
         Log:Error('下载文件时出错!')
     end
     return false
-end
-
-function Repo:removeClassFromDB(tableName)
-    package_db:execute(([[
-        DROP TABLE "%s"
-    ]]):format(tableName))
-end
-
-function Repo:appendToDB(tableName,name,uuid,version,contributors,description,selflink)
-    package_db:execute(([[	
-        CREATE TABLE IF NOT EXISTS "%s"(
-            name TEXT NOT NULL,
-            uuid TEXT NOT NULL,
-            version TEXT NOT NULL,
-            contributors TEXT NOT NULL,
-            description TEXT NOT NULL,
-            download TEXT NOT NULL
-        )
-    ]]):format(tableName))
-    package_db:execute(([[
-        INSERT INTO "%s" VALUES('%s','%s','%s','%s','%s','%s')
-    ]]):format(name,uuid,version,contributors,description,selflink))
 end
 
 ---获取可用资源组
@@ -449,10 +429,115 @@ function Repo:getMultiResource(name)
     return url
 end
 
+function PkgDB:getAll()
+    local result = package_db:execute[[
+        SELECT name _id FROM sqlite_master WHERE type ='table'
+    ]]
+    local rtn = {}
+    local name = result:fetch()
+    while name do
+        rtn[#rtn+1] = name
+    end
+    return rtn
+end
+
+---删除数据库中指定repoUUID的Class(Name)
+---@param uuid string
+---@param class string
+function PkgDB:remove(uuid,class)
+    return self:removeTbl(('%s__%s'):format(uuid,class))
+end
+
+function PkgDB:removeTbl(name)
+    return package_db:execute(([[
+        DROP TABLE "%s"
+    ]]):format(name))
+end
+
+---添加一条软件包信息到本地数据库中
+---@param repo_uuid string 指定仓库UUID
+---@param name string 软件包名
+---@param uuid string 软件包UUID
+---@param version string 软件包版本
+---@param contributors string 贡献者信息
+---@param description string 简短解释
+---@param selflink string 软件包下载链接
+function PkgDB:append(repo_uuid,class,name,uuid,version,contributors,description,selflink)
+    package_db:execute(([[	
+        CREATE TABLE IF NOT EXISTS "%s__%s"(
+            name TEXT NOT NULL,
+            uuid TEXT NOT NULL,
+            version TEXT NOT NULL,
+            contributors TEXT NOT NULL,
+            description TEXT NOT NULL,
+            download TEXT NOT NULL
+        )
+    ]]):format(repo_uuid,class))
+    package_db:execute(([[
+        INSERT INTO "%s" VALUES('%s','%s','%s','%s','%s','%s')
+    ]]):format(name,uuid,version,contributors,description,selflink))
+end
+
+---获取一个仓库在本地软件包列表中持有的所有表名
+---@param uuid string
+---@return table
+function PkgDB:getAvailableClasses(uuid)
+    local rtn = {}
+    local result = PkgDB:getAll()
+    local n = uuid .. '__'
+    for _,name in pairs(result) do
+        if name:sub(1,n:len()) == n then
+            rtn[#rtn+1] = name
+        end
+    end
+    return rtn
+end
+
+---删除一个仓库在本地列表中
+---@param uuid string
+function PkgDB:purge(uuid)
+    local avail = self:getAvailableClasses(uuid)
+    for _,name in pairs(avail) do
+        self:removeTbl(name)
+    end
+end
+
 ---根据关键词搜索
 ---@param keyword string
-function Repo:search(keyword)
-    
+---@return table
+function PkgDB:search(keyword,onlyQueryTopRepo)
+    local rtn = {
+        isTop = false,
+        data = {}
+    }
+    for n,uuid in pairs(Repo:getPriorityList()) do
+        local classes = self:getAvailableClasses(uuid)
+        for _,class in pairs(classes) do
+            local res = package_db:execute([[
+                SELECT * FROM "%s" WHERE name="%s"
+            ]]):format(class,keyword)
+            local name,pk_uuid,version,contributors,description,download = res:fetch()
+            while name do
+                rtn.data[#rtn.data+1] = {
+                    name = name,
+                    uuid = pk_uuid,
+                    version = version,
+                    contributors = contributors,
+                    description = description,
+                    download = download
+                }
+                name,pk_uuid,version,contributors,description,download = res:fetch()
+            end
+        end
+        if n == 1 and #rtn.data ~= 0 then --- top repo had result.
+            rtn.isTop = true
+            return rtn
+            --- else query from other repositories.
+        elseif onlyQueryTopRepo then
+            return rtn
+        end
+    end
+    return rtn
 end
 
 return Repo
