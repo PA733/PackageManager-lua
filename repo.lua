@@ -505,17 +505,23 @@ end
 ---根据关键词搜索
 ---@param keyword string
 ---@return table
-function PkgDB:search(keyword,onlyQueryTopRepo)
+function PkgDB:search(keyword,onlyQueryTopRepo,messyMatch,byUUID)
     local rtn = {
         isTop = false,
         data = {}
     }
+    local byWhat = 'name'
+    if byUUID then
+        byWhat = 'uuid'
+    end
+    local cmd = [[ SELECT * FROM "%s" WHERE %s="%s" ]]
+    if messyMatch then
+        cmd = [[ SELECT * FROM "%s" WHERE "%s" LIKE "%%%s%%" ]]
+    end
     for n,uuid in pairs(Repo:getPriorityList()) do
         local classes = self:getAvailableClasses(uuid)
         for _,class in pairs(classes) do
-            local res = package_db:execute([[
-                SELECT * FROM "%s" WHERE name="%s"
-            ]]):format(class,keyword)
+            local res = package_db:execute(cmd):format(class,byWhat,keyword)
             local name,pk_uuid,version,contributors,description,download = res:fetch()
             while name do
                 rtn.data[#rtn.data+1] = {
