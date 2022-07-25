@@ -23,9 +23,10 @@ end
 
 function Temp:free()
     return Fs:rmdir(self.baseDir) and Fs:mkdir(self.baseDir)
-    
 end
 
+---获取一个临时文件，返回路径。
+---@return string
 function Temp:getFile()
     local n
     while true do
@@ -38,6 +39,8 @@ function Temp:getFile()
     return n
 end
 
+---获取一个临时目录，返回路径。
+---@return string
 function Temp:getDirectory()
     local n
     while true do

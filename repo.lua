@@ -502,9 +502,12 @@ function PkgDB:purge(uuid)
     end
 end
 
----根据关键词搜索
----@param keyword string
----@return table
+---从本地软件包列表中搜索
+---@param keyword string 关键词
+---@param onlyQueryTopRepo? boolean 只查找最高优先级仓库
+---@param messyMatch? boolean 启用模糊查找
+---@param byUUID? boolean 通过UUID(keyword换成uuid)
+---@return table 返回包含结果的表
 function PkgDB:search(keyword,onlyQueryTopRepo,messyMatch,byUUID)
     local rtn = {
         isTop = false,
@@ -514,17 +517,19 @@ function PkgDB:search(keyword,onlyQueryTopRepo,messyMatch,byUUID)
     if byUUID then
         byWhat = 'uuid'
     end
-    local cmd = [[ SELECT * FROM "%s" WHERE %s="%s" ]]
+    local cmd = [[ SELECT * FROM "%s__%s" WHERE %s="%s" ]]
     if messyMatch then
-        cmd = [[ SELECT * FROM "%s" WHERE "%s" LIKE "%%%s%%" ]]
+        cmd = [[ SELECT * FROM "%s__%s" WHERE "%s" LIKE "%%%s%%" ]]
     end
     for n,uuid in pairs(Repo:getPriorityList()) do
         local classes = self:getAvailableClasses(uuid)
         for _,class in pairs(classes) do
-            local res = package_db:execute(cmd):format(class,byWhat,keyword)
+            local res = package_db:execute(cmd):format(uuid,class,byWhat,keyword)
             local name,pk_uuid,version,contributors,description,download = res:fetch()
             while name do
                 rtn.data[#rtn.data+1] = {
+                    repo = uuid,
+                    class = class,
                     name = name,
                     uuid = pk_uuid,
                     version = version,

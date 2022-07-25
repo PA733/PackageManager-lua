@@ -1,13 +1,7 @@
 # LPM
-The package manager for LiteLoaderBDS, made by Lua.
+> **Testing...**  
 
-## TODOs
- - [x] <NET> Multi download protocol.
- - [x] <NET> Multi repoistroy design.
- - [x] <LOC> Install/Remove/Update/Purge software.
- - [x] <LOC> Verify package using SHA1.
- - [ ] <NET> Package list using Sqlite3, depent slove.
- - [ ] PluginPacker/RepoManager (standalone sw).
+The package manager for LiteLoaderBDS, made by Lua.
 
 ## Credits
  - [Lua-cURL](https://github.com/Lua-cURL/Lua-cURLv3)

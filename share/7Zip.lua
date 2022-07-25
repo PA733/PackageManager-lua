@@ -39,10 +39,12 @@ end
 ---解压缩
 ---@param path string 压缩文件路径
 ---@param topath string? 解压到路径, 若不提供则返回一个临时路径
+---@return boolean isOk
+---@return string path
 function P7zip:extract(path,topath)
     if not Fs:isExist(path) then
         Log:Error('解压缩失败，因为文件不存在。')
-        return
+        return false,''
     end
     topath = topath or Temp:getDirectory()
     return Wf.popen(('%s%s x -o"%s" -y "%s"'):format(self.path,'7za',topath,path)):read('*a'):find('Everything is Ok')~=nil,topath
