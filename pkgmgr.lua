@@ -158,6 +158,9 @@ function PackMgr:install(lpkdir, noask)
     local overwrite_noask = false
     local jumpout_noask = false
     local bds_dir = BDS:getRunningDirectory()
+    if pkgInfo.uuid == 'be3bf7fe-360a-46b2-b6e3-6cf7151f641b' then
+        bds_dir = './'
+    end
     Fs:iterator(path .. 'content/', function(nowpath, file)
         local ori_path_file = nowpath .. file
         local inst_path_file = bds_dir .. ori_path_file:sub((path .. 'content/'):len() + 1)
