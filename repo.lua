@@ -504,11 +504,10 @@ end
 
 ---从本地软件包列表中搜索
 ---@param keyword string 关键词
----@param onlyQueryTopRepo? boolean 只查找最高优先级仓库
 ---@param messyMatch? boolean 启用模糊查找
 ---@param byUUID? boolean 通过UUID(keyword换成uuid)
 ---@return table 返回包含结果的表
-function PkgDB:search(keyword,onlyQueryTopRepo,messyMatch,byUUID)
+function PkgDB:search(keyword,messyMatch,byUUID)
     local rtn = {
         isTop = false,
         data = {}
@@ -542,9 +541,6 @@ function PkgDB:search(keyword,onlyQueryTopRepo,messyMatch,byUUID)
         end
         if n == 1 and #rtn.data ~= 0 then --- top repo had result.
             rtn.isTop = true
-            return rtn
-            --- else query from other repositories.
-        elseif onlyQueryTopRepo then
             return rtn
         end
     end

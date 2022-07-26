@@ -71,60 +71,45 @@ end
 
 Order.Install = Command:command 'install'
     :summary '安装一个软件包'
-    :description '此命令将从源中检索软件包，并 安装。'
+    :description '此命令将从源中检索软件包，并安装。'
     :action(function(dict)
         local name = dict.name
-        if name:sub(name:len() - 3) == '.' .. ENV.INSTALLER_EXTNAME then
-            PackMgr:install(name, dict.yes)
-            return
+        local temp_main,pkgname
+        if name:sub(name:len() - 3) ~= '.' .. ENV.INSTALLER_EXTNAME then
+            local result = PkgDB:search(dict.name, false, dict.use_uuid)
+            if #result.data == 0 then
+                Log:Error('找不到名为 %s 的软件包', dict.name)
+                return
+            end
+            if not result.isTop then
+                Log:Warn('在最高优先级仓库中找不到 %s, 以下是来自其他仓库的结果, 输入序号以选择或回车取消安装。')
+            end
+            for n, res in pairs(result.data) do
+                Log:Print('[%s] >> (%s/%s) %s - %s', n, Repo:getName(res.uuid), res.class, res.name, res.version)
+            end
+            Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
+            Log:Print('(%s-%s) > ', 1, #result.data)
+            local chosed = result.data[tonumber(io.read())]
+            if not chosed then
+                return
+            end
+            pkgname = chosed.name
+            Log:Info('正在下载 %s ...', pkgname)
+            temp_main = Temp:getFile()
+            if not Cloud:NewTask {
+                url = chosed.download,
+                writefunction = Fs:open(temp_main, 'wb')
+            } then
+                Log:Error('下载 %s 时发生错误。', pkgname)
+                return
+            end
+        else
+            temp_main = name
+            pkgname = '本地软件包'
         end
-        local result = PkgDB:search(dict.name, false, dict.use_highest, dict.use_uuid)
-        if #result.data == 0 then
-            Log:Error('找不到名为 %s 的软件包', dict.name)
-            return
-        end
-        if not result.isTop then
-            Log:Warn('在最高优先级仓库中找不到 %s, 以下是来自其他仓库的结果, 输入序号以选择或回车取消安装。')
-        end
-        for n, res in pairs(result.data) do
-            Log:Print('[%s] >> (%s/%s) %s - %s', n, Repo:getName(res.uuid), res.class, res.name, res.version)
-        end
-        Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
-        Log:Print('(%s-%s) > ', 1, #result.data)
-        local chosed = result.data[tonumber(io.read())]
-        if not chosed then
-            return
-        end
-        Log:Info('正在下载 %s ...', chosed.name)
-        local temp_main = Temp:getFile()
-        if not Cloud:NewTask {
-            url = chosed.download,
-            writefunction = Fs:open(temp_main, 'wb')
-        } then
-            Log:Error('下载 %s 时发生错误。', chosed.name)
-            return
-        end
-        Log:Info('正在解压缩 %s ...', chosed.name)
-        local res, path = P7zip:extract(temp_main)
-        if not res then
-            Log:Error('解包 %s 时发生错误。', chosed.name)
-            return
-        end
-        local pkg_self = JSON:parse(Fs:readFrom(path))
-        if not pkg_self then
-            Log:Error('解析 %s 的自述文件时发生错误。', chosed.name)
-            return
-        end
-        if not PackMgr:verify(path, pkg_self) then
-            return
-        end
-        Log:Error('正在处理依赖关系...')
-        if not PackMgr:handleDependents(pkg_self, dict.use_highest) then
-            return
-        end
+        PackMgr:install(temp_main)
     end)
 Order.Install:argument('name', '软件包名称')
-Order.Install:flag('--use-highest', '仅使用最高优先级的仓库')
 Order.Install:flag('--use-uuid', '使用UUID索引')
 
 Order.Update = Command:command 'update'
@@ -132,20 +117,39 @@ Order.Update = Command:command 'update'
     :description '此命令将先从仓库拉取最新软件包列表，然后升级本地已安装软件版本。如果提供name，则单独升级指定软件包。'
     :action(function(dict)
         local name = dict.name
-        if name then
-            if name:sub(name:len() - 3) == '.' .. ENV.INSTALLER_EXTNAME then
-                Log:Info('正在读取即将升级的软件包列表...')
-                PackMgr:update(name, dict.yes)
-            else
-
+        if not name then
+            for _, uuid in pairs(Repo:getAllEnabled()) do
+                Repo:update(uuid)
             end
-            return
+            if dict.repo_only then
+                return
+            end
         end
-        for _, uuid in pairs(Repo:getAllEnabled()) do
-            Repo:update(uuid)
+        -------- ↑ Update Repo | ↓ Update Software --------
+        Log:Info('正在获取待更新软件包列表...')
+        local need_update = {}
+        for _,uuid in pairs(PackMgr:getInstalledList()) do
+            local old = PackMgr:getInstalled(uuid).version
+            local new = PkgDB:search(uuid,false,true)
+            if #new.data == 0 then
+                Log:Error('无法在仓库中找到 %s ！',old.name)
+                return
+            end
+            local tfile = Temp:getFile()
+            if not Cloud:NewTask {
+                url = new.data[1].download,
+                writefunction = Fs:open(tfile,'wb')
+            } then
+                Log:Error('下载 %s 时出错！',old.name)
+                return
+            end
+            need_update[#need_update+1] = {old.name,tfile}
         end
+
     end)
 Order.Update:argument('name', '软件包名称'):args '?'
+Order.Update:flag('--use-uuid', '使用UUID索引')
+Order.Update:flag('--repo-only','只更新仓库')
 
 Order.Remove = Command:command 'remove'
     :summary '删除一个软件包'
@@ -384,7 +388,7 @@ Order.Search = Command:command 'search'
     :summary '搜索软件包'
     :description '此命令将按照要求在数据库中搜索软件包'
     :action(function(dict)
-        local result = PkgDB:search(dict.name, dict.use_highest, not dict.strict_mode, dict.use_uuid)
+        local result = PkgDB:search(dict.name, not dict.strict_mode, dict.use_uuid)
         if #result.data == 0 then
             Log:Error('找不到名为 %s 的软件包', dict.name)
             return
@@ -409,11 +413,8 @@ Order.Search = Command:command 'search'
         Log:Info('简介: %s', chosed.description)
     end)
 Order.Search:argument('name', '软件包名称'):args '?'
-Order.Search:flag('--use-highest', '仅使用最高优先级的仓库')
 Order.Search:flag('--use-uuid', '使用UUID查找')
 Order.Search:flag('--strict-mode', '关闭模糊匹配')
-
-Command:flag('-y --yes', '许可当前执行的命令发出的所有询问。')
 
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Helper ||||||||||||||||| --

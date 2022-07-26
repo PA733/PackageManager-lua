@@ -122,9 +122,9 @@ function PackMgr:verify(path, pkgInfo, updateMode)
     return not stopAndFailed
 end
 
----安装lpk软件包, 不处理依赖
+---安装lpk软件包
 ---@param lpkdir string 软件包路径
----@param noask? boolean 是否跳过在安装过程中询问
+---@param noask? boolean
 ---@return boolean
 function PackMgr:install(lpkdir, noask)
     noask = noask or false
@@ -137,6 +137,10 @@ function PackMgr:install(lpkdir, noask)
         return false
     end
     if not self:verify(path, pkgInfo) then
+        return false
+    end
+    Log:Error('正在处理依赖关系...')
+    if not self:handleDependents(pkgInfo) then
         return false
     end
     Log:Info('%s (%s) - %s', pkgInfo.name, pkgInfo.version, pkgInfo.contributors)
@@ -164,7 +168,7 @@ function PackMgr:install(lpkdir, noask)
             mkdired[inst_path] = 1
         end
         count = count + 1
-        if not (noask or overwrite_noask) and Fs:isExist(inst_path_file) then
+        if not overwrite_noask and Fs:isExist(inst_path_file) then
             if jumpout_noask then
                 return
             end
@@ -203,12 +207,10 @@ function PackMgr:install(lpkdir, noask)
     return true
 end
 
----升级软件包, 不处理依赖
+---升级软件包
 ---@param lpkdir string
----@param noask? boolean 是否跳过在安装过程中询问
 ---@return boolean
-function PackMgr:update(lpkdir, noask)
-    noask = noask or false
+function PackMgr:update(lpkdir)
     local path, pkgInfo = self:parse(lpkdir)
     if not (path and pkgInfo) then
         return false
@@ -225,13 +227,15 @@ function PackMgr:update(lpkdir, noask)
     if not self:verify(path, pkgInfo, true) then
         return false
     end
+    Log:Error('正在处理依赖关系...')
+    if not self:handleDependents(pkgInfo) then
+        return false
+    end
     Log:Info('%s (%s->%s) - %s', pkgInfo.name, old_IDPkg.version, pkgInfo.version, pkgInfo.contributors)
-    if not noask then
-        io.write(('是否升级 %s (y/N)? '):format(pkgInfo.name))
-        local chosed = io.read():lower()
-        if chosed ~= 'y' then
-            return false
-        end
+    io.write(('是否升级 %s (y/N)? '):format(pkgInfo.name))
+    local chosed = io.read():lower()
+    if chosed ~= 'y' then
+        return false
     end
     local all_count = Fs:getFileCount(path .. 'content/')
     local count = 0
@@ -250,7 +254,7 @@ function PackMgr:update(lpkdir, noask)
             mkdired[inst_path] = 1
         end
         count = count + 1
-        if not (noask or overwrite_noask) and Fs:isExist(inst_path_file) and
+        if not overwrite_noask and Fs:isExist(inst_path_file) and
             not array.fetch(old_IDPkg.paths.installed, relative_inst_path_file) then
             if jumpout_noask then
                 return
@@ -259,7 +263,7 @@ function PackMgr:update(lpkdir, noask)
             while true do
                 Log:Warn('[o]覆盖 [q]跳过 [O]全部覆盖 [Q]全部跳过')
                 Log:Write('(O/o/Q/q) > ')
-                local chosed = io.read()
+                chosed = io.read()
                 if chosed == 'O' then
                     overwrite_noask = true
                     break
@@ -393,9 +397,8 @@ end
 
 ---为某软件包处理依赖
 ---@param pkg table 软件包Self的表对象
----@param top_only? boolean 是否只使用顶级仓库
 ---@return boolean
-function PackMgr:handleDependents(pkg, top_only)
+function PackMgr:handleDependents(pkg)
     local downloaded = {}
     for n, against in pairs(pkg.conflict) do
         local instd = self:getInstalled(against.uuid)
@@ -406,7 +409,26 @@ function PackMgr:handleDependents(pkg, top_only)
     end
     for n, rely in pairs(pkg.depends) do --- short information for depends(rely)
         Log:Info('(%d/%d) 正在处理 %s ...', n, #pkg.depends, rely.name)
-        local tpack = PkgDB:search(pkg.uuid, false, top_only, true)
+        local insted = PackMgr:getInstalled(pkg.uuid)
+        local tpack
+        if insted then
+            if ApplicableVersionChecker:check(insted.version,rely.version) then
+                Log:Info('(%d/%d) 已安装 %s。', n, #pkg.depends, rely.name)
+            else
+                local try = PkgDB:search(rely.uuid,false,true)
+                if try.data == 0 then
+                    Log:Error('无法处理依赖 %s, 此软件包不存在于当前仓库。',rely.name)
+                    return false
+                elseif ApplicableVersionChecker:check(try.version,rely.version) then
+                    Log:Error('无法处理依赖 %s, 无法满足的版本要求(%s)。',rely.name,rely.version)
+                    return false
+                else --- should update installed denpendent [this].
+                    tpack = try
+                end
+            end
+        else
+            tpack = PkgDB:search(rely.uuid, false, true)
+        end
         if #tpack.data == 0 then
             Log:Error('无法处理依赖 %s, 因为在仓库中找不到软件。', rely.name)
             return false
@@ -423,22 +445,17 @@ function PackMgr:handleDependents(pkg, top_only)
         Log:Info('(%d/%d) 正在解压缩 %s ...', n, #pkg.depends, pkg.name)
         local tres, tpath = P7zip:extract(dpath)
         if not tres then
-            Log:Error('无法处理依赖 %s, 因为解包 %s 时发生错误。', rely.name, pkg.name)
+            Log:Error('无法处理依赖 %s, 因为解包时发生错误。', rely.name)
             return false
         end
-        local dpkg_self = JSON:parse(Fs:readFrom(tpath))
-        if not dpkg_self then
-            Log:Error('无法处理依赖 %s, 因为解析 %s 的自述文件时发生错误。', rely.name, pkg.name)
+        local path,dpkg_self = self:parse(tpath)
+        if not (path and dpkg_self) then
             return false
         end
         if not self:verify(tpath, dpkg_self) then
             Log:Error('无法处理依赖 %s, 因为无法验证其软件包。', rely.name)
             return false
         end --- pre-check-completed.
-        if not self:handleDependents(dpkg_self, top_only) then
-            Log:Error('无法处理依赖 %s, 因为遇到了无法处理的嵌套依赖关系。', rely.name)
-            return false
-        end
         downloaded[#downloaded + 1] = { rely.name, dpath }
     end
     for n, pk in pairs(downloaded) do
