@@ -4,8 +4,8 @@
 
 --]] ----------------------------------------
 
-local Log = Logger:new('PackMgr')
-PackMgr = {
+local Log = Logger:new('SoftwareManager')
+SoftwareManager = {
     dir = 'data/installed/',
     installed = {}
 }
@@ -26,7 +26,7 @@ local function is_in_whitelist(uuid)
     return array.fetch(ENV.INSTALLER_WHITELIST, uuid) ~= nil
 end
 
-function PackMgr:init()
+function SoftwareManager:init()
     Fs:mkdir(self.dir)
     Fs:iterator(self.dir, function(nowpath, file)
         local path = nowpath .. file
@@ -48,7 +48,7 @@ end
 ---@param lpkdir string
 ---@return string|nil 解析后所在的临时路径
 ---@return table|nil PkgInfo
-function PackMgr:parse(lpkdir)
+function SoftwareManager:parse(lpkdir)
     Log:Info('正在解析软件包...')
     local stat, path = P7zip:extract(lpkdir)
     if not stat then
@@ -78,7 +78,7 @@ end
 ---@param pkgInfo table object from `self.json`
 ---@param updateMode boolean? 升级模式，跳过部分检查
 ---@return boolean 是否完整且合法
-function PackMgr:verify(path, pkgInfo, updateMode)
+function SoftwareManager:verify(path, pkgInfo, updateMode)
     Log:Info('正在校验包...')
     if not updateMode and self:getInstalled(pkgInfo.uuid) then
         Log:Error('软件包已安装过，安全检查失败。')
@@ -126,7 +126,7 @@ end
 ---@param lpkdir string 软件包路径
 ---@param noask? boolean
 ---@return boolean
-function PackMgr:install(lpkdir, noask)
+function SoftwareManager:install(lpkdir, noask)
     noask = noask or false
     local path, pkgInfo = self:parse(lpkdir)
     if not (path and pkgInfo) then
@@ -213,7 +213,7 @@ end
 ---升级软件包
 ---@param lpkdir string
 ---@return boolean
-function PackMgr:update(lpkdir)
+function SoftwareManager:update(lpkdir)
     local path, pkgInfo = self:parse(lpkdir)
     if not (path and pkgInfo) then
         return false
@@ -302,10 +302,10 @@ function PackMgr:update(lpkdir)
     return true
 end
 
----根据软件包名称获取UUID(从已安装列表中)
+---在已安装列表中通过名称检索UUID
 ---@param name string
 ---@return string|nil
-function PackMgr:getUuidByName(name)
+function SoftwareManager:getUuidByName(name)
     for uuid, pkg in pairs(self.installed) do
         if pkg.name == name then
             return uuid
@@ -319,7 +319,7 @@ end
 ---@param purge? boolean 是否删除数据文件
 ---@return boolean 是否成功删除
 ---@return boolean 删除过程中是否遇到错误
-function PackMgr:remove(uuid, purge)
+function SoftwareManager:remove(uuid, purge)
     local pkg = self:getInstalled(uuid)
     if not pkg then
         Log:Error('软件包 %s 未安装，无法卸载。', uuid)
@@ -367,7 +367,7 @@ end
 ---删除指定软件包的数据文件
 ---@param uuid string
 ---@return boolean 是否成功删除
-function PackMgr:purge(uuid)
+function SoftwareManager:purge(uuid)
     local pkg = self:getInstalled(uuid)
     if not pkg then
         Log:Error('软件包 %s 未安装，无法删除数据文件。', uuid)
@@ -383,7 +383,7 @@ function PackMgr:purge(uuid)
 end
 
 ---获取已安装软件包列表(uuid)
-function PackMgr:getInstalledList()
+function SoftwareManager:getAll()
     local rtn = {}
     for uuid, _ in pairs(self.installed) do
         rtn[#rtn + 1] = uuid
@@ -394,14 +394,14 @@ end
 ---根据UUID获取软件包信息(从已安装列表)
 ---@param uuid string
 ---@return table|nil
-function PackMgr:getInstalled(uuid)
+function SoftwareManager:get(uuid)
     return self.installed[uuid]
 end
 
 ---为某软件包处理依赖
 ---@param pkg table 软件包Self的表对象
 ---@return boolean
-function PackMgr:handleDependents(pkg)
+function SoftwareManager:handleDependents(pkg)
     local downloaded = {}
     for n, against in pairs(pkg.conflict) do
         local instd = self:getInstalled(against.uuid)
@@ -412,13 +412,13 @@ function PackMgr:handleDependents(pkg)
     end
     for n, rely in pairs(pkg.depends) do --- short information for depends(rely)
         Log:Info('(%d/%d) 正在处理 %s ...', n, #pkg.depends, rely.name)
-        local insted = PackMgr:getInstalled(pkg.uuid)
+        local insted = SoftwareManager:getInstalled(pkg.uuid)
         local tpack
         if insted then
             if ApplicableVersionChecker:check(insted.version,rely.version) then
                 Log:Info('(%d/%d) 已安装 %s。', n, #pkg.depends, rely.name)
             else
-                local try = PkgDB:search(rely.uuid,false,true)
+                local try = self:search(rely.uuid,false,true)
                 if try.data == 0 then
                     Log:Error('无法处理依赖 %s, 此软件包不存在于当前仓库。',rely.name)
                     return false
@@ -430,7 +430,7 @@ function PackMgr:handleDependents(pkg)
                 end
             end
         else
-            tpack = PkgDB:search(rely.uuid, false, true)
+            tpack = self:search(rely.uuid, false, true)
         end
         if #tpack.data == 0 then
             Log:Error('无法处理依赖 %s, 因为在仓库中找不到软件。', rely.name)
@@ -472,4 +472,4 @@ function PackMgr:handleDependents(pkg)
     return true
 end
 
-return PackMgr
+return SoftwareManager

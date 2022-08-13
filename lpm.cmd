@@ -1,2 +1,2 @@
 @echo off
-lua exec.lua %*
+lua Run.lua %*

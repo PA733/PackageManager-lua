@@ -18,7 +18,6 @@ RepoManager = {
     --- use `self:getPriorityList()` to get me!
     priority = {}
 }
-PkgDB = {}
 
 ---初始化
 ---@return boolean

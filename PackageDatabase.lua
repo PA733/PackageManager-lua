@@ -1,5 +1,21 @@
-function PkgDB:getAll()
-    local result = package_db:execute[[
+--[[ ----------------------------------------
+
+    [Main] Package Manager
+
+--]] ----------------------------------------
+
+PackageDatabase = {}
+
+---获取数据库实例
+---@return userdata
+function PackageDatabase:get()
+    return RepoManager.database
+end
+
+---获取所有软件包表
+---@return table
+function PackageDatabase:getAll()
+    local result = self:get():execute[[
         SELECT name _id FROM sqlite_master WHERE type ='table'
     ]]
     local rtn = {}
@@ -10,15 +26,19 @@ function PkgDB:getAll()
     return rtn
 end
 
----删除数据库中指定repoUUID的Class(Name)
----@param uuid string
+---删除数据库中指定仓库的class
+---@param repo Repo
 ---@param class string
-function PkgDB:remove(uuid,class)
-    return self:removeTbl(('%s__%s'):format(uuid,class))
+---@return any
+function PackageDatabase:remove(repo,class)
+    return self:removeTbl(('%s__%s'):format(repo:getUUID(),class))
 end
 
-function PkgDB:removeTbl(name)
-    return package_db:execute(([[
+---直接删除表
+---@param name string 表名称
+---@return any
+function PackageDatabase:removeTbl(name)
+    return self:get():execute(([[
         DROP TABLE "%s"
     ]]):format(name))
 end
@@ -31,8 +51,8 @@ end
 ---@param contributors string 贡献者信息
 ---@param description string 简短解释
 ---@param selflink string 软件包下载链接
-function PkgDB:append(repo_uuid,class,name,uuid,version,contributors,description,selflink)
-    package_db:execute(([[	
+function PackageDatabase:append(repo_uuid,class,name,uuid,version,contributors,description,selflink)
+    self:get():execute(([[	
         CREATE TABLE IF NOT EXISTS "%s__%s"(
             name TEXT NOT NULL,
             uuid TEXT NOT NULL,
@@ -42,7 +62,7 @@ function PkgDB:append(repo_uuid,class,name,uuid,version,contributors,description
             download TEXT NOT NULL
         )
     ]]):format(repo_uuid,class))
-    package_db:execute(([[
+    self:get():execute(([[
         INSERT INTO "%s" VALUES('%s','%s','%s','%s','%s','%s')
     ]]):format(name,uuid,version,contributors,description,selflink))
 end
@@ -50,9 +70,9 @@ end
 ---获取一个仓库在本地软件包列表中持有的所有表名
 ---@param uuid string
 ---@return table
-function PkgDB:getAvailableClasses(uuid)
+function PackageDatabase:getAvailableClasses(uuid)
     local rtn = {}
-    local result = PkgDB:getAll()
+    local result = self:getAll()
     local n = uuid .. '__'
     for _,name in pairs(result) do
         if name:sub(1,n:len()) == n then
@@ -63,12 +83,15 @@ function PkgDB:getAvailableClasses(uuid)
 end
 
 ---删除一个仓库在本地列表中
----@param uuid string
-function PkgDB:purge(uuid)
-    local avail = self:getAvailableClasses(uuid)
+---@param repo Repo
+---@return boolean
+function PackageDatabase:purge(repo)
+    local avail = self:getAvailableClasses(repo:getUUID())
     for _,name in pairs(avail) do
         self:removeTbl(name)
+        return true
     end
+    return false
 end
 
 ---从本地软件包列表中搜索
@@ -76,7 +99,7 @@ end
 ---@param messyMatch? boolean 启用模糊查找
 ---@param byUUID? boolean 通过UUID(keyword换成uuid)
 ---@return table 返回包含结果的表
-function PkgDB:search(keyword,messyMatch,byUUID)
+function PackageDatabase:search(keyword,messyMatch,byUUID)
     local rtn = {
         isTop = false,
         data = {}
@@ -89,10 +112,10 @@ function PkgDB:search(keyword,messyMatch,byUUID)
     if messyMatch then
         cmd = [[ SELECT * FROM "%s__%s" WHERE "%s" LIKE "%%%s%%" ]]
     end
-    for n,uuid in pairs(Repo:getPriorityList()) do
+    for n,uuid in pairs(RepoManager:getPriorityList()) do
         local classes = self:getAvailableClasses(uuid)
         for _,class in pairs(classes) do
-            local res = package_db:execute(cmd):format(uuid,class,byWhat,keyword)
+            local res = self:get():execute(cmd):format(uuid,class,byWhat,keyword)
             local name,pk_uuid,version,contributors,description,download = res:fetch()
             while name do
                 rtn.data[#rtn.data+1] = {
