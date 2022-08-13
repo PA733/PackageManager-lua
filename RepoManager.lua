@@ -82,7 +82,7 @@ function RepoManager:remove(uuid)
         return false
     end
     Log:Info('正在清除软件包目录...')
-    PkgDB:purge(uuid)
+    PackageDatabase:purge(repo)
     Fs:rmdir(self.dir..uuid)
     self.loaded[uuid] = nil
     self:save()

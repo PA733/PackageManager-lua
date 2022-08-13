@@ -207,10 +207,10 @@ function Repo:update(firstUpdate)
             local result = db:execute[[
                 SELECT * FROM packages
             ]]
-            PkgDB:remove(uuid,cont[1])
+            PackageDatabase:remove(self,cont[1])
             local name,sw_uuid,version,contributors,description,selflink = result:fetch()
             while name do
-                PkgDB:append(uuid,cont[1],name,sw_uuid,version,contributors,description,selflink)
+                PackageDatabase:append(uuid,cont[1],name,sw_uuid,version,contributors,description,selflink)
                 name,sw_uuid,version,contributors,description,selflink = result:fetch()
             end
         end

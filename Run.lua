@@ -48,8 +48,8 @@ local stat, msg = pcall(function()
     assert(Temp:init(), 'TempHelper')
     assert(Settings:init(), 'ConfigManager')
     assert(P7zip:init(), '7zHelper')
-    assert(Repo:init(), 'RepoManager')
-    assert(PackMgr:init(), 'LocalPackageManager')
+    assert(RepoManager:init(), 'RepoManager')
+    assert(SoftwareManager:init(), 'LocalPackageManager')
     assert(BDS:init(), 'BDSHelper')
 end)
 if not stat then
@@ -76,7 +76,7 @@ Order.Install = Command:command 'install'
         local name = dict.name
         local temp_main,pkgname
         if name:sub(name:len() - 3) ~= '.' .. ENV.INSTALLER_EXTNAME then
-            local result = PkgDB:search(dict.name, false, dict.use_uuid)
+            local result = PackageDatabase:search(dict.name, false, dict.use_uuid)
             if #result.data == 0 then
                 Log:Error('找不到名为 %s 的软件包', dict.name)
                 return
@@ -85,7 +85,7 @@ Order.Install = Command:command 'install'
                 Log:Warn('在最高优先级仓库中找不到 %s, 以下是来自其他仓库的结果, 输入序号以选择或回车取消安装。')
             end
             for n, res in pairs(result.data) do
-                Log:Print('[%s] >> (%s/%s) %s - %s', n, Repo:getName(res.uuid), res.class, res.name, res.version)
+                Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.uuid):getName(), res.class, res.name, res.version)
             end
             Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
             Log:Print('(%s-%s) > ', 1, #result.data)
@@ -107,7 +107,7 @@ Order.Install = Command:command 'install'
             temp_main = name
             pkgname = '本地软件包'
         end
-        PackMgr:install(temp_main)
+        SoftwareManager:install(temp_main)
     end)
 Order.Install:argument('name', '软件包名称')
 Order.Install:flag('--use-uuid', '使用UUID索引')
@@ -118,7 +118,7 @@ Order.Update = Command:command 'update'
     :action(function(dict)
         local name = dict.name
         if not name then
-            for _, uuid in pairs(Repo:getAllEnabled()) do
+            for _, uuid in pairs(RepoManager:getAllEnabled()) do
                 Repo:update(uuid)
             end
             if dict.repo_only then
@@ -128,9 +128,9 @@ Order.Update = Command:command 'update'
         -------- ↑ Update Repo | ↓ Update Software --------
         Log:Info('正在获取待更新软件包列表...')
         local need_update = {}
-        for _,uuid in pairs(PackMgr:getInstalledList()) do
-            local old = PackMgr:getInstalled(uuid).version
-            local new = PkgDB:search(uuid,false,true)
+        for _,uuid in pairs(SoftwareManager:getInstalledList()) do
+            local old = SoftwareManager:getInstalled(uuid).version
+            local new = PackageDatabase:search(uuid,false,true)
             if #new.data == 0 then
                 Log:Error('无法在仓库中找到 %s ！',old.name)
                 return
@@ -155,12 +155,12 @@ Order.Remove = Command:command 'remove'
     :summary '删除一个软件包'
     :description '此命令将删除指定软件包但不清除软件储存的数据。'
     :action(function(dict)
-        local uuid = PackMgr:getUuidByName(dict.name)
+        local uuid = SoftwareManager:getUuidByName(dict.name)
         if not uuid then
             Log:Error('找不到软件包 %s，因此无法删除。', dict.name)
             return
         end
-        PackMgr:remove(uuid, dict.purge)
+        SoftwareManager:remove(uuid, dict.purge)
     end)
 Order.Remove:flag('-p --purge', '同时清除数据 (危险)')
 Order.Remove:argument('name', '软件包名称')
@@ -169,12 +169,12 @@ Order.Purge = Command:command 'purge'
     :summary '清除指定软件的数据'
     :description '此命令将清除指定软件储存的数据 (危险)，但不卸载该软件。'
     :action(function(dict)
-        local uuid = PackMgr:getUuidByName(dict.name)
+        local uuid = SoftwareManager:getUuidByName(dict.name)
         if not uuid then
             Log:Error('找不到软件包 %s，因此无法清除数据。', dict.name)
             return
         end
-        PackMgr:purge(uuid)
+        SoftwareManager:purge(uuid)
     end)
 Order.Purge:argument('name', '软件包名称')
 
@@ -182,10 +182,10 @@ Order.List = Command:command 'list'
     :summary '列出已安装软件包'
     :description '此命令将列出所有已经安装的软件包'
     :action(function(dict)
-        local list = PackMgr:getInstalledList()
+        local list = SoftwareManager:getAll()
         Log:Info('已安装 %s 个软件包', #list)
         for n, uuid in pairs(list) do
-            local pkg = PackMgr:getInstalled(uuid)
+            local pkg = SoftwareManager:get(uuid)
             if pkg then
                 Log:Info('[%d] %s - %s (%s)', n, pkg.name, pkg.version, uuid)
             end
@@ -251,7 +251,7 @@ Order.AddRepo = Command:command 'add-repo'
                 return
             end
         end
-        if not Repo:add(parsed_file.identifier, dict.link, group, not (dict.no_update)) then
+        if not RepoManager:add(parsed_file.identifier, dict.link, group, not (dict.no_update)) then
             Log:Error('仓库添加失败')
             return
         end
@@ -271,7 +271,7 @@ Order.RmRepo = Command:command 'rm-repo'
             end
             dict.uuid = plzUUID
         end
-        if Repo:remove(dict.uuid) then
+        if RepoManager:remove(dict.uuid) then
             Log:Info('仓库（%s）已被删除', dict.uuid)
         end
     end)
@@ -281,18 +281,18 @@ Order.ListRepo = Command:command 'list-repo'
     :summary '列出所有仓库'
     :description '此命令将列出所有已配置的仓库。'
     :action(function(dict)
-        local repo_list = Repo:getAll()
-        local enabled, disabled = Repo:getPriorityList(), Repo:getAll()
+        local repo_list = RepoManager:getAll()
+        local enabled, disabled = RepoManager:getPriorityList(), RepoManager:getAll()
         Log:Info('已配置 %s 个仓库。', #repo_list)
         Log:Info('已启用 %s 个仓库, 它们的优先级为:', #enabled)
         for n, uuid in pairs(enabled) do
             array.remove(disabled, uuid)
-            Log:Info('%s. %s - [%s]', n, Repo:getName(uuid), uuid)
+            Log:Info('%s. %s - [%s]', n, RepoManager:get(uuid):getName(), uuid)
         end
         if #disabled ~= 0 then
             Log:Info('已禁用 %s 个仓库', #disabled)
             for n, uuid in pairs(disabled) do
-                Log:Info('%s. %s - [%s]', n, Repo:getName(uuid), uuid)
+                Log:Info('%s. %s - [%s]', n, RepoManager:get(uuid):getName(), uuid)
             end
         end
     end)
@@ -308,7 +308,12 @@ Order.SetRepo = Command:command 'set-repo'
             end
             dict.uuid = plzUUID
         end
-        Repo:setStatus(dict.uuid, dict.status == 'enable')
+        local repo = RepoManager:get(dict.uuid)
+        if not repo then
+            Log:Error('未知的仓库！')
+            return
+        end
+        repo:setStatus(dict.status == 'enable')
     end)
 Order.SetRepo:argument('uuid', '目标仓库的UUID。'):args '?'
 Order.SetRepo:argument('status', '开或关')
@@ -325,11 +330,12 @@ Order.MoveRepo = Command:command 'move-repo'
             end
             dict.uuid = plzUUID
         end
-        if not Repo:isEnabled(dict.uuid) then
+        local repo = RepoManager:get(dict.uuid)
+        if not repo or not repo:isEnabled() then
             Log:Error('目标仓库不存在或未开启。')
             return
         end
-        Repo:movePriority(dict.uuid, dict.action == 'down')
+        repo:movePriority(dict.action == 'down')
         Log:Info('已更新仓库优先级。')
     end)
 Order.MoveRepo:argument('uuid', '目标仓库的UUID。'):args '?'
@@ -347,11 +353,12 @@ Order.ResetRepoGroup = Command:command('repo-reset-group')
             end
             dict.uuid = plzUUID
         end
-        if not Repo:isExist(dict.uuid) then
+        local repo = RepoManager:get(dict.uuid)
+        if not repo then
             Log:Error('不存在的仓库！')
             return
         end
-        local list = Repo:getAvailableGroups(dict.uuid, dict.update)
+        local list = repo:getAvailableGroups(dict.update)
         if not list or #list < 1 then
             Log:Error('当前仓库没有资源分组适合您的BDS。')
             return
@@ -366,7 +373,7 @@ Order.ResetRepoGroup = Command:command('repo-reset-group')
             Log:Error('输入错误！')
             return
         end
-        Repo:setGroup(dict.uuid, chosed)
+        repo:setUsingGroup(chosed)
         Log:Info('设置成功。')
 
     end)
@@ -388,7 +395,7 @@ Order.Search = Command:command 'search'
     :summary '搜索软件包'
     :description '此命令将按照要求在数据库中搜索软件包'
     :action(function(dict)
-        local result = PkgDB:search(dict.name, not dict.strict_mode, dict.use_uuid)
+        local result = PackageDatabase:search(dict.name, not dict.strict_mode, dict.use_uuid)
         if #result.data == 0 then
             Log:Error('找不到名为 %s 的软件包', dict.name)
             return
@@ -397,7 +404,7 @@ Order.Search = Command:command 'search'
             Log:Info('这是来自最高优先级仓库的结果:')
         end
         for n, res in pairs(result.data) do
-            Log:Print('[%s] >> (%s/%s) %s - %s', n, Repo:getName(res.uuid), res.class, res.name, res.version)
+            Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.uuid):getName(), res.class, res.name, res.version)
         end
         Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
         Log:Print('(%s-%s) > ', 1, #result.data)
@@ -428,13 +435,13 @@ OrderHelper = {}
 function OrderHelper:pleaseUUID(shouldEnabled)
     local list
     if shouldEnabled then
-        list = Repo:getAllEnabled()
+        list = RepoManager:getAllEnabled()
     else
-        list = Repo:getAll()
+        list = RepoManager:getAll()
     end
     Log:Print('请选择仓库以提供 UUID 参数:')
     for n, uuid in pairs(list) do
-        Log:Print('[%s] >> %s - [%s]', n, Repo:getName(uuid), uuid)
+        Log:Print('[%s] >> %s - [%s]', n, RepoManager:get(uuid):getName(), uuid)
     end
     Log:Write('(%d-%d) > ', 1, #list)
     local chosed = list[tonumber(io.read())]
@@ -459,5 +466,5 @@ Command:parse(arg)
 -- |||||||||||||||| UnInitialization |||||||||||||||||| --
 ----------------------------------------------------------
 
-Repo:uninit()
+RepoManager:uninit()
 Temp:free()

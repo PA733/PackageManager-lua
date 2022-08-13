@@ -26,6 +26,8 @@ local function is_in_whitelist(uuid)
     return array.fetch(ENV.INSTALLER_WHITELIST, uuid) ~= nil
 end
 
+---初始化
+---@return boolean
 function SoftwareManager:init()
     Fs:mkdir(self.dir)
     Fs:iterator(self.dir, function(nowpath, file)
