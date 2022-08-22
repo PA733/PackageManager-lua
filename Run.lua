@@ -75,7 +75,7 @@ Order.Install = Command:command 'install'
     :action(function(dict)
         local name = dict.name
         local temp_main,pkgname
-        if name:sub(name:len() - 3) ~= '.' .. ENV.INSTALLER_EXTNAME then
+        if name:sub(name:len() - 3) ~= '.' .. Package.suffix then
             local result = PackageDatabase:search(dict.name, false, dict.use_uuid)
             if #result.data == 0 then
                 Log:Error('找不到名为 %s 的软件包', dict.name)
