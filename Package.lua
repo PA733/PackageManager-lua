@@ -8,13 +8,15 @@
 Package = {
     root_check_list = {
         'self.json',
+        'verification.json',
         'content'
     },
     suffix = 'lpk',
 
     package_dir = 'NULL',
     unpacked_path = 'NULL',
-    meta = {}
+    meta = {},
+    verification = {}
 
 }
 local Log = Logger:new('Package')
@@ -44,11 +46,17 @@ function Package:fromFile(dir)
         Log:Error('软件包自述文件版本不匹配。')
         return nil
     end
+    local verification = JSON:parse(Fs:readFrom(unpacked_path .. 'verification.json'))
+    if not verification then
+        Log:Error('读取校验信息时出现异常。')
+        return nil
+    end
     local origin = {}
     setmetatable(origin,self)
     self.__index = self
     origin.package_dir = dir
     origin.meta = pkgInfo
+    origin.verification = verification
     origin.unpacked_path = unpacked_path
     return origin
 end
@@ -97,13 +105,12 @@ function Package:getDependents(ntree,list)
         if sw then
             rtn.node_tree:branch(sw.name):setNote('已安装')
         else
-            local res = PackageDatabase:search(info.uuid,false,true)
+            local res = SoftwareManager:search(info.uuid,false,true)
             if #res.data == 0 then
                 rtn.node_tree:branch(info.uuid):setNote('未找到')
             else
                 rtn.list[#rtn.list+1] = res.data[1]
                 rtn.node_tree:branch(res.data[1].name)
-                
             end
         end
     end
@@ -127,6 +134,10 @@ function Package:getTags()
     return self.meta.tags
 end
 
+function Package:getVerification()
+    return self.verification
+end
+
 ---检查是否适配当前游戏版本
 ---@return boolean
 function Package:checkRequiredGameVersion()
@@ -142,7 +153,7 @@ end
 function Package:buildDescription()
     local deps = ''
     for _,depend in pairs(self:getDependents()) do
-        deps = deps .. PackageDatabase:search(depend.uuid)
+        deps = deps .. RepoManager:search(depend.uuid,true)
     end
     return ('软件包: %s\n版本: %s\n贡献者: %s\n主页: %s\n标签: %s\n介绍: %s').format(
         self:getName(),
@@ -170,6 +181,7 @@ function Package:verify(updateMode)
         return false
     end
     local meta = self.meta
+    local verification = self:getVerification()
     local unpacked = self.unpacked_path
     local stopAndFailed = false
     local allow_unsafe = Settings:get('installer.allow_unsafe_directory') or SoftwareManager.Helper:isWhitePackage(self:getUUID())
@@ -191,7 +203,7 @@ function Package:verify(updateMode)
                 return
             end
         end
-        local sha1 = meta.verification[vpath]
+        local sha1 = verification[vpath]
         local statu, pkg_file_sha1 = SHA1:file(ori_path)
         if not (sha1 and statu) or pkg_file_sha1 ~= sha1 then
             Log:Error('软件包校验失败。')
@@ -375,7 +387,7 @@ end
 function Package:handleDependents(ntree)
     local ext_need_install = {}
     local pkgName = self:getName()
-    local ntree = NodeTree:create(pkgName)
+    ntree = ntree or NodeTree:create(pkgName)
     for n, against in pairs(self:getConflict()) do
         local instd = SoftwareManager:getInstalled(against.uuid)
         if instd and ApplicableVersionChecker:check(instd.version, against.version) then
@@ -392,7 +404,7 @@ function Package:handleDependents(ntree)
             if ApplicableVersionChecker:check(insted.version,rely.version) then
                 Log:Info('(%d/%d) 已安装 %s。', n, #depends, rely.name)
             else
-                local try = PackageDatabase:search(rely.uuid,false,true)
+                local try = RepoManager:search(rely.uuid,false)
                 if try.data == 0 then
                     Log:Error('无法处理依赖 %s, 此软件包不存在于当前仓库。',rely.name)
                     return false
@@ -404,7 +416,7 @@ function Package:handleDependents(ntree)
                 end
             end
         else
-            tpack = PackageDatabase:search(rely.uuid, false, true)
+            tpack = RepoManager:search(rely.uuid, false)
         end
         if #tpack.data == 0 then
             Log:Error('无法处理依赖 %s, 因为在仓库中找不到软件。', rely.name)

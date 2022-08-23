@@ -76,7 +76,7 @@ Order.Install = Command:command 'install'
         local name = dict.name
         local temp_main,pkgname
         if name:sub(name:len() - 3) ~= '.' .. Package.suffix then
-            local result = PackageDatabase:search(dict.name, false, dict.use_uuid)
+            local result = RepoManager:search(dict.name, dict.use_uuid)
             if #result.data == 0 then
                 Log:Error('找不到名为 %s 的软件包', dict.name)
                 return
@@ -119,7 +119,7 @@ Order.Update = Command:command 'update'
         local name = dict.name
         if not name then
             for _, uuid in pairs(RepoManager:getAllEnabled()) do
-                Repo:update(uuid)
+                RepoManager:get(uuid):update()
             end
             if dict.repo_only then
                 return
@@ -130,7 +130,7 @@ Order.Update = Command:command 'update'
         local need_update = {}
         for _,uuid in pairs(SoftwareManager:getInstalledList()) do
             local old = SoftwareManager:getInstalled(uuid).version
-            local new = PackageDatabase:search(uuid,false,true)
+            local new = RepoManager:search(uuid,true)
             if #new.data == 0 then
                 Log:Error('无法在仓库中找到 %s ！',old.name)
                 return
@@ -395,7 +395,7 @@ Order.Search = Command:command 'search'
     :summary '搜索软件包'
     :description '此命令将按照要求在数据库中搜索软件包'
     :action(function(dict)
-        local result = PackageDatabase:search(dict.name, not dict.strict_mode, dict.use_uuid)
+        local result = RepoManager:search(dict.name, dict.use_uuid)
         if #result.data == 0 then
             Log:Error('找不到名为 %s 的软件包', dict.name)
             return
@@ -466,5 +466,4 @@ Command:parse(arg)
 -- |||||||||||||||| UnInitialization |||||||||||||||||| --
 ----------------------------------------------------------
 
-RepoManager:uninit()
 Temp:free()

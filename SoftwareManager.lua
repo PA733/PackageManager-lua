@@ -116,7 +116,7 @@ function SoftwareManager:remove(uuid, purge)
     return true, not hasFail
 end
 
----删除指定软件包的数据文件
+---删除指定软件的数据文件
 ---@param uuid string
 ---@return boolean 是否成功删除
 function SoftwareManager:purge(uuid)
@@ -134,7 +134,7 @@ function SoftwareManager:purge(uuid)
     return true
 end
 
----获取已安装软件包列表(uuid)
+---获取已安装软件列表(uuid)
 function SoftwareManager:getAll()
     local rtn = {}
     for uuid, _ in pairs(self.installed) do
@@ -143,7 +143,7 @@ function SoftwareManager:getAll()
     return rtn
 end
 
----根据UUID获取软件包信息(从已安装列表)
+---根据UUID获取软件信息(从已安装列表)
 ---@param uuid string
 ---@return table|nil
 function SoftwareManager:get(uuid)

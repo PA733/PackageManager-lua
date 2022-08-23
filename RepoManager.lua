@@ -4,17 +4,13 @@
 
 --]] ----------------------------------------
 
-local driver = require "luasql.sqlite3"
-local env = driver.sqlite3()
 local Log = Logger:new('RepoManager')
 
 ---@class RepoManager
 RepoManager = {
     dir = 'data/repositories/',
     dir_cfg = 'data/repo.json',
-    dir_db = 'data/packages.db',
     loaded = {},
-    database = nil,
     --- use `self:getPriorityList()` to get me!
     priority = {}
 }
@@ -22,7 +18,7 @@ RepoManager = {
 ---初始化
 ---@return boolean
 function RepoManager:init()
-    Fs:mkdir('data/repositories')
+    Fs:mkdir(self.dir..'/cache')
     if not Fs:isExist(self.dir_cfg) then
         Fs:writeTo(self.dir_cfg,JSON:stringify {
             format_version = Version:getNum(2),
@@ -31,15 +27,7 @@ function RepoManager:init()
         })
     end
     self.loaded = JSON:parse(Fs:readFrom(self.dir_cfg)).repos
-    self.database = env:connect(self.dir_db)
     return self.loaded ~= nil
-end
-
----反初始化
-function RepoManager:uninit()
-    self.database:close()
-    env:close()
-    driver:close()
 end
 
 ---添加一个仓库
@@ -81,8 +69,8 @@ function RepoManager:remove(uuid)
         Log:Error('若要删除 %s, 必须先启用另一个仓库。',repo:getName())
         return false
     end
+    repo:purge()
     Log:Info('正在清除软件包目录...')
-    PackageDatabase:purge(repo)
     Fs:rmdir(self.dir..uuid)
     self.loaded[uuid] = nil
     self:save()
@@ -98,8 +86,8 @@ function RepoManager:get(uuid)
     if not data then
         return nil
     end
-    setmetatable(origin,self)
-    self.__index = self
+    setmetatable(origin,Repo)
+    Repo.__index = Repo
     origin.uuid = uuid
     origin.enabled = data.enabled
     origin.metafile = data.metafile
@@ -170,6 +158,15 @@ function RepoManager:getAllEnabled()
         end
     end
     return rtn
+end
+
+---在全部仓库中搜索
+---@param pattern string
+---@param identifier boolean 是否提供的是UUID
+---@param limit? number
+---@return table
+function RepoManager:search(pattern,identifier,limit)
+    
 end
 
 return RepoManager

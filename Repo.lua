@@ -4,9 +4,7 @@
 
 --]] ----------------------------------------
 
-local driver = require "luasql.sqlite3"
 local manager = RepoManager
-local env = driver.sqlite3()
 local Log = Logger:new('Repo')
 
 ---@class Repo
@@ -131,7 +129,7 @@ function Repo:setUsingGroup(name)
 end
 
 ---更新指定仓库软件包列表
----@param firstUpdate boolean 是否为首次更新
+---@param firstUpdate? boolean 是否为首次更新
 ---@return boolean
 function Repo:update(firstUpdate)
     local uuid = self:getUUID()
@@ -168,63 +166,35 @@ function Repo:update(firstUpdate)
             return false
         end
     end
-    local hasErr = false
     local group = self:getUsingGroup()
     if not group then
         Log:Error('获取正在使用的资源组时出现错误！')
         return false
     end
-    local downloaded = {}
     Log:Info('正在开始下载...')
     for n,cont in pairs(group.classes) do
-        if not cont:match("[%c,%p]") then
-            local dbpath = Temp:getFile()
+        if not cont:isVaild() then
+            local path = ('%s/cache/%s_%s_%s.json'):format(manager.dir,uuid,group.name,cont.name)
             Log:Info('(%d/%d) 正在下载分类 %s 的数据库...',n,#group.classes,cont.name)
-            local dbfile = Fs:open(dbpath,"wb")
+            local file = Fs:open(path,"wb")
             local url = cont.resource
             if not Cloud:parseLink(cont.resource) then
-                url = ('%s%s%s'):format(Fs:getFileAtDir(self:getLink()),'multi/',cont.resource)
+                url = ('%smulti/%s'):format(Fs:getFileAtDir(self:getLink()),cont.resource)
             end
             local res = Cloud:NewTask {
                 url = url,
-                writefunction = dbfile
+                writefunction = file
             }
-            dbfile:close()
+            file:close()
             if not res then
                 Log:Error('(%d/%d) 分类 %s 的数据库下载失败！',n,#group.classes,cont.name)
-                hasErr = true
                 break
             end
-            downloaded[#downloaded+1] = {cont.name,dbfile}
         else
             Log:Warn('(%d/%d) 分类 %s 存在不合法字符，跳过...',n,#group.classes,cont.name)
         end
     end
-    if not hasErr then
-        Log:Info('正在导入数据库...')
-        for _,cont in pairs(downloaded) do
-            local db = env:connect(cont[2])
-            local result = db:execute[[
-                SELECT * FROM packages
-            ]]
-            PackageDatabase:remove(self,cont[1])
-            local name,sw_uuid,version,contributors,description,selflink = result:fetch()
-            while name do
-                PackageDatabase:append(uuid,cont[1],name,sw_uuid,version,contributors,description,selflink)
-                name,sw_uuid,version,contributors,description,selflink = result:fetch()
-            end
-        end
-        if not hasErr then
-            Fs:writeTo(('%s%s.repo'):format(manager.dir,uuid),JSON:stringify(meta))
-            Log:Info('仓库自述文件已更新。')
-            return true
-        else
-            Log:Error('导入数据库时出错！')
-        end
-    else
-        Log:Error('下载文件时出错!')
-    end
-    return false
+    return true
 end
 
 ---获取可用资源组
@@ -260,6 +230,23 @@ function Repo:getMultiResource(name)
         url = ('%s%s%s'):format(Fs:getFileAtDir(self:getLink()),'multi/',item.file)
     end
     return url
+end
+
+---清除仓库缓存
+---@return boolean
+function Repo:purge()
+    
+end
+
+---在仓库中执行搜索
+---@param pattern string 关键词, 可以是模式匹配字符串
+---@param limit? number 最大结果数量, 默认无限制
+---@return table 结果
+function Repo:search(pattern,limit)
+    local rtn = {}
+    limit = limit or -1
+    
+    return rtn
 end
 
 return Repo

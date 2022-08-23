@@ -6,6 +6,9 @@
 
 --- string
 
+---分割字符串 - 匹配法
+---@param reps string
+---@return table
 function string:split(reps)
 	local result = {}
 ---@diagnostic disable-next-line: discard-returns
@@ -13,6 +16,15 @@ function string:split(reps)
 		table.insert(result,n)
 	end)
 	return result
+end
+
+---判断字符串是否仅含有数字和字母
+function string:isVaild()
+    local rule = ''
+    for _=1,self:len() do
+        rule = rule .. '[%w]'
+    end
+    return self:match(rule)
 end
 
 --- table
@@ -30,6 +42,9 @@ local function typeEx(value)
 	end
 end
 
+---判断表是否可以认定为数组
+---@param tab table
+---@return boolean
 function table.isArray(tab)
 	local count = 1
 	for k,v in pairs(tab) do
@@ -41,6 +56,11 @@ function table.isArray(tab)
 	return true
 end
 
+---遍历表获取所有路径
+---@param tab table
+---@param ExpandArray boolean 是否展开数组
+---@param UnNeedThisPrefix? boolean 是否需要包含 `this.` 前缀
+---@return table
 function table.getAllPaths(tab,ExpandArray,UnNeedThisPrefix)
 	local result = {}
 	local inner_tmp
@@ -68,28 +88,29 @@ function table.getAllPaths(tab,ExpandArray,UnNeedThisPrefix)
 	return result
 end
 
+---根据path获取表中元素  
+---何为path?  
+---**A** e.g. `{a=2,b=7,n=42,ok={pap=626}}`  
+---    <path> *this.b*			=>		7  
+---    <path> *this.ok.pap*		=>		626  
+---**B** e.g. `{2,3,1,ff={8}}`  
+---    <path> *this.(\*)3*         =>		1  
+---    <path> *this.ff.(\*)1*		=>		8  
+---@param tab any
+---@param path any
+---@return any
 function table.getKey(tab,path)
 
-	--[[
-		What is "path"?
-		[A] the_table: {a=2,b=7,n=42,ok={pap=626}}
-			<path> this.b			=>		7
-			<path> this.ok.pap		=>		626
-		[B] the_table: {2,3,1,ff={8}}
-			<path> this.(*)3		=>		1
-			<path> this.ff.(*)1		=>		8
-	]]
-
-	if string.sub(path,1,5) == 'this.' then
-		path = string.sub(path,6)
+	if path:sub(1,5) == 'this.' then
+		path = path:sub(6)
 	end
 
-	local pathes = string.split(path,'.')
+	local pathes = path:split('.')
 	if #pathes == 0 then
 		return tab
 	end
-	if string.sub(pathes[1],1,3) == '(*)' then
-		pathes[1] = tonumber(string.sub(pathes[1],4))
+	if pathes[1]:sub(1,3) == '(*)' then
+		pathes[1] = tonumber(pathes[1]:sub(4))
 	end
 	local lta = tab[pathes[1]]
 
@@ -101,17 +122,21 @@ function table.getKey(tab,path)
 
 end
 
+---根据path设置表中元素  
+---何为path? 请看getKey注释
+---@param tab table
+---@param path string
+---@param value any
 function table.setKey(tab,path,value)
 
-	if string.sub(path,1,5) == 'this.' then
-		path = string.sub(path,6)
+	if path:sub(1,5) == 'this.' then
+		path = path:sub(6)
 	end
 
-	local pathes = string.split(path,'.')
-	if string.sub(pathes[1],1,3) == '(*)' then
-		pathes[1] = tonumber(string.sub(pathes[1],4))
+	local pathes = path:split('.')
+	if pathes[1]:sub(1,3) == '(*)' then
+		pathes[1] = tonumber(pathes[1]:sub(4))
 	end
-
 	if tab[pathes[1]] == nil then
 		return
 	end
@@ -121,11 +146,13 @@ function table.setKey(tab,path,value)
 		tab[pathes[1]] = value
 		return
 	end
-
 	table.setKey(tab[pathes[1]],table.concat(pathes,'.',2,#pathes),value)
 
 end
 
+---深复制表
+---@param orig table
+---@return table
 function table.clone(orig)
     local orig_type = type(orig)
     local copy
@@ -141,6 +168,9 @@ function table.clone(orig)
     return copy
 end
 
+---将表信息转为字符串
+---@param tab table
+---@return string
 function table.toDebugString(tab)
 	local rtn = 'Total: '..#tab
 	for k,v in pairs(tab) do
@@ -151,6 +181,10 @@ end
 
 array = {}
 
+---连接array到origin尾部
+---@param origin table
+---@param array table
+---@return table
 function array.concat(origin,array)
 	for n,k in pairs(array) do
 		origin[#origin+1] = k
@@ -158,15 +192,23 @@ function array.concat(origin,array)
 	return origin
 end
 
+---在数组中查找某元素, 并返回位置  
+---@param origin table
+---@param element any
+---@return integer|nil
 function array.fetch(origin,element)
-	for p,e in pairs(origin) do
-		if element == e then
-			return p
-		end
-	end
+    for p,e in pairs(origin) do
+        if element == e then
+            return p
+        end
+    end
 	return nil
 end
 
+---创建一个全部为 `defaultValue` 的数组
+---@param length integer
+---@param defaultValue any
+---@return table
 function array.create(length,defaultValue)
 	local rtn = {}
 	for i=1,length do
@@ -175,6 +217,9 @@ function array.create(length,defaultValue)
 	return rtn
 end
 
+---将数组中每个元素转为数字
+---@param original table
+---@return table
 function array.tonumber(original)
 	local rtn = {}
 	for a,n in pairs(original) do
@@ -183,6 +228,10 @@ function array.tonumber(original)
 	return rtn
 end
 
+---从数组中删除元素
+---@param origin table
+---@param element any
+---@return any
 function array.remove(origin,element)
 	return table.remove(origin,array.fetch(origin,element))
 end
