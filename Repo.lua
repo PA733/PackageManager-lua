@@ -137,34 +137,18 @@ function Repo:update(firstUpdate)
         firstUpdate = not Fs:isExist(('%s%s.repo'):format(manager.dir,uuid))
     end
     local repo = self:getMeta()
-    if not repo then
+    local repo_new = self:getMeta(true)
+    if not (repo and repo_new) then
         return false
     end
     Log:Info('正在更新仓库 %s ...',repo.name)
     Log:Info('正在拉取描述文件...')
-    local meta
-    if not firstUpdate then
-        local old_meta = self:getMeta()
-        meta = self:getMeta(true)
-        if not (old_meta and meta) then
-            return false
-        end
-        if meta.status == 1 then
-            Log:Warn('无法更新 %s (%s)，因为该仓库正在维护。',meta.name,uuid)
-            return false
-        end
-        if old_meta.updated == meta.updated then
-            Log:Info('仓库 %s 已是最新了，无需再更新。',meta.name)
-            return true
-        end
-    else
-        meta = self:getMeta(true)
-        if not meta then
-            return false
-        elseif meta.status == 1 then
-            Log:Warn('无法更新 %s (%s)，因为该仓库正在维护。',meta.name,uuid)
-            return false
-        end
+    if repo_new.status == 1 then
+        Log:Warn('无法更新 %s (%s)，因为该仓库正在维护。',repo.name,uuid)
+        return false
+    elseif not firstUpdate and repo.updated >= repo_new.updated then
+        Log:Info('仓库 %s 已是最新了，无需再更新。',repo.name)
+        return true
     end
     local group = self:getUsingGroup()
     if not group then
@@ -172,14 +156,14 @@ function Repo:update(firstUpdate)
         return false
     end
     Log:Info('正在开始下载...')
-    for n,cont in pairs(group.classes) do
-        if not cont:isVaild() then
-            local path = ('%s/cache/%s_%s_%s.json'):format(manager.dir,uuid,group.name,cont.name)
-            Log:Info('(%d/%d) 正在下载分类 %s 的数据库...',n,#group.classes,cont.name)
+    for n,class in pairs(group.classes) do
+        if not (manager:isLegalName(class.name) and manager:isLegalName(group.name)) then
+            local path = ('%s/cache/%s_%s_%s.json'):format(manager.dir,uuid,group.name,class.name)
+            Log:Info('(%d/%d) 正在下载分类 %s 的软件包列表...',n,#group.classes,class.name)
             local file = Fs:open(path,"wb")
-            local url = cont.resource
-            if not Cloud:parseLink(cont.resource) then
-                url = ('%smulti/%s'):format(Fs:getFileAtDir(self:getLink()),cont.resource)
+            local url = class.list
+            if not Cloud:parseLink(class.list) then
+                url = ('%sgroups/%s'):format(Fs:getFileAtDir(self:getLink()),class.list)
             end
             local res = Cloud:NewTask {
                 url = url,
@@ -187,11 +171,11 @@ function Repo:update(firstUpdate)
             }
             file:close()
             if not res then
-                Log:Error('(%d/%d) 分类 %s 的数据库下载失败！',n,#group.classes,cont.name)
+                Log:Error('(%d/%d) 分类 %s 的软件包列表下载失败！',n,#group.classes,class.name)
                 break
             end
         else
-            Log:Warn('(%d/%d) 分类 %s 存在不合法字符，跳过...',n,#group.classes,cont.name)
+            Log:Warn('(%d/%d) 群组 %s 的分类 %s 存在不合法字符，跳过...',n,#group.classes,group.name,class.name)
         end
     end
     return true
@@ -235,17 +219,80 @@ end
 ---清除仓库缓存
 ---@return boolean
 function Repo:purge()
-    
+    local prefix = self:getUUID() .. '_'
+    return Fs:iterator(manager.dir..'/cache/',function (path,name)
+        if name:sub(1,prefix:len()) == prefix then
+            Fs:remove(path..name)
+        end
+    end)
+end
+
+---加载/重载缓存的软件包列表
+---@return boolean
+function Repo:loadPkgs()
+    self.pkgs = {}
+    local prefix = self:getUUID() .. '_'
+    return Fs:iterator(manager.dir..'/cache/',function (path,name)
+        if name:sub(1,prefix:len()) ~= prefix then
+            return
+        end
+        local data = JSON:parse(path..name)
+        if not (data and data.data) then
+            Log:Error('加载 %s 时出错!',name)
+            return
+        end
+        array.concat(self.pkgs,data.data)
+    end)
 end
 
 ---在仓库中执行搜索
 ---@param pattern string 关键词, 可以是模式匹配字符串
+---@param matchBy? string **name** or uuid
+---@param version? string 版本匹配表达式
+---@param tags? table 要求包含tags列表
 ---@param limit? number 最大结果数量, 默认无限制
 ---@return table 结果
-function Repo:search(pattern,limit)
+function Repo:search(pattern,matchBy,version,tags,limit)
     local rtn = {}
+    matchBy = matchBy or 'name'
+    version = version or '*'
+    tags = tags or {}
     limit = limit or -1
-    
+    self:loadPkgs()
+    local function matchTags(taggs)
+        if #tags == 0 then
+            return true
+        end
+        for _,tag in pairs(tags) do
+            if array.fetch(taggs,tag) then
+                return true
+            end
+        end
+        return false
+    end
+    for _,info in pairs(self.pkgs) do
+        if matchBy == 'name' then
+            if info.name:find(pattern)
+                and ApplicableVersionChecker:check(info.version,version)
+                and matchTags(info.tags)
+            then
+                rtn[#rtn+1] = info
+            end
+        elseif matchBy == 'uuid' then
+            if info.uuid == pattern
+                and ApplicableVersionChecker:check(info.version,version)
+                and matchTags(info.tags)
+            then
+                rtn[#rtn+1] = info
+            end
+        else
+            Log:Error('未知的匹配方式 %s !',matchBy)
+            break
+        end
+        if limit > 0 and #rtn >= limit then
+            break
+        end
+    end
     return rtn
 end
 

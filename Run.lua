@@ -128,8 +128,8 @@ Order.Update = Command:command 'update'
         -------- ↑ Update Repo | ↓ Update Software --------
         Log:Info('正在获取待更新软件包列表...')
         local need_update = {}
-        for _,uuid in pairs(SoftwareManager:getInstalledList()) do
-            local old = SoftwareManager:getInstalled(uuid).version
+        for _,uuid in pairs(SoftwareManager:getAll()) do
+            local old = SoftwareManager:get(uuid).version
             local new = RepoManager:search(uuid,true)
             if #new.data == 0 then
                 Log:Error('无法在仓库中找到 %s ！',old.name)

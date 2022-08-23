@@ -26,6 +26,8 @@ Settings = {
     loaded = false
 }
 
+---初始化
+---@return boolean
 function Settings:init()
     if not Fs:isExist(self.dir) then
         Fs:writeTo(self.dir,JSON:stringify(cfg,true))
@@ -43,28 +45,37 @@ function Settings:init()
     return self.loaded
 end
 
+---根据path获取配置项值
+---@param path string
+---@return any
 function Settings:get(path)
     if not self.loaded then
         Log:Error('尝试在配置项初始化前获得配置项 %s',path)
-        return
+        return nil
     end
     return table.getKey(cfg,path)
 end
 
+---根据path设置配置项值
+---@param path string
+---@param value any
+---@return boolean
 function Settings:set(path,value)
     if not self.loaded then
         Log:Error('尝试在配置项初始化前设定配置项 %s',path)
-        return
+        return false
     end
     table.setKey(cfg,path,value)
     self:save()
     return true
 end
 
+---保存配置项
+---@return boolean
 function Settings:save()
     if not self.loaded then
         Log:Error('尝试在配置项初始化前保存')
-        return
+        return false
     end
     Fs:writeTo(self.dir,JSON:stringify(cfg,true))
     return true

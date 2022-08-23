@@ -170,7 +170,7 @@ end
 ---@return boolean
 function Package:verify(updateMode)
     Log:Info('正在校验包...')
-    if not updateMode and SoftwareManager:getInstalled(self:getUUID()) then
+    if not updateMode and SoftwareManager:get(self:getUUID()) then
         Log:Error('软件包已安装过，安全检查失败。')
     end
     if not updateMode and SoftwareManager:getUuidByName(self:getName()) then
@@ -218,7 +218,7 @@ end
 ---@return boolean
 function Package:install()
     local uuid = self:getUUID()
-    if SoftwareManager:getInstalled(uuid) then
+    if SoftwareManager:get(uuid) then
         Log:Error('软件包 %s 已安装，不可以重复安装。', uuid)
         return false
     end
@@ -298,7 +298,7 @@ end
 function Package:update()
     local uuid = self:getUUID()
     local name = self:getName()
-    local old_IDPkg = SoftwareManager:getInstalled(uuid)
+    local old_IDPkg = SoftwareManager:get(uuid)
     if not old_IDPkg then
         Log:Info('%s 还未安装，因此无法升级。', name)
         return false
@@ -382,78 +382,58 @@ function Package:update()
 end
 
 ---处理依赖
----@param ntree? NodeTree
----@return boolean
-function Package:handleDependents(ntree)
-    local ext_need_install = {}
+---@param scheme? table
+---@return table 依赖处理方案
+function Package:handleDependents(scheme)
     local pkgName = self:getName()
-    ntree = ntree or NodeTree:create(pkgName)
-    for n, against in pairs(self:getConflict()) do
-        local instd = SoftwareManager:getInstalled(against.uuid)
+    local rtn = scheme or {
+        ntree = NodeTree:create(pkgName),
+        install = {},
+        errors = {}
+    }
+    local ntree = rtn.ntree
+    for _, against in pairs(self:getConflict()) do
+        local instd = SoftwareManager:get(against.uuid)
         if instd and ApplicableVersionChecker:check(instd.version, against.version) then
-            Log:Error('无法处理 %s 的依赖, 其与软件包 %s(%s) 冲突。', pkgName, instd.name, against.version)
-            return false
+            rtn.status = false
+            rtn.errors[#rtn.errors+1] = {
+                type = 'conflict',
+                uuid = against.uuid,
+                version = against.version,
+                name = against.name
+            }
+            ntree:branch(against.name):setNote(('与%s不兼容'):format(instd:getName()))
         end
     end
     local depends = self:getDependents()
-    for n, rely in pairs(depends) do --- short information for depends(rely)
-        Log:Info('(%d/%d) 正在处理 %s ...', n, #depends, rely.name)
-        local insted = SoftwareManager:getInstalled(self:getUUID())
-        local tpack
-        if insted then
-            if ApplicableVersionChecker:check(insted.version,rely.version) then
-                Log:Info('(%d/%d) 已安装 %s。', n, #depends, rely.name)
-            else
-                local try = RepoManager:search(rely.uuid,false)
-                if try.data == 0 then
-                    Log:Error('无法处理依赖 %s, 此软件包不存在于当前仓库。',rely.name)
-                    return false
-                elseif ApplicableVersionChecker:check(try.version,rely.version) then
-                    Log:Error('无法处理依赖 %s, 无法满足的版本要求(%s)。',rely.name,rely.version)
-                    return false
-                else --- should update installed denpendent [this].
-                    tpack = try
-                end
+    for _, rely in pairs(depends) do --- short information for depends(rely)
+        local insted = SoftwareManager:get(rely.uuid)
+        local name = SoftwareManager:getNameByUuid(rely.uuid)
+        name = name or rely.uuid
+        if insted and ApplicableVersionChecker:check(insted.version,rely.version) then
+            ntree:branch(name):setNote('已安装')
+        else
+            local try = RepoManager:search(rely.uuid,false,'uuid',rely.version,nil,1)
+            if #try == 0 then
+                ntree:branch(name):setNote('版本不兼容')
+                rtn.errors[#rtn.errors+1] = {
+                    type = 'notfound',
+                    uuid = rely.uuid,
+                    version = rely.version,
+                    name = name
+                }
+            elseif insted and insted:getVersion(true) <= try.release then
+                ntree:branch(name):setNote('不能降级')
+                rtn.errors[#rtn.errors+1] = {
+                    type = 'cantdegrade',
+                    uuid = rely.uuid,
+                    version = rely.version,
+                    name = name
+                }
+            else --- should update installed denpendent [this].
+                rtn.install[#rtn.install+1] = try[1]
             end
-        else
-            tpack = RepoManager:search(rely.uuid, false)
-        end
-        if #tpack.data == 0 then
-            Log:Error('无法处理依赖 %s, 因为在仓库中找不到软件。', rely.name)
-            return false
-        end
-        local m = tpack.data[1]
-        local dpath = Temp:getFile()
-        if not Cloud:NewTask {
-            url = m.download,
-            path = dpath
-        } then
-            Log:Error('无法处理依赖 %s, 因为下载失败。', rely.name)
-            return false
-        end
-        Log:Info('(%d/%d) 正在解压缩 %s ...', n, #depends, pkgName)
-        local tres, tpath = P7zip:extract(dpath)
-        if not tres then
-            Log:Error('无法处理依赖 %s, 因为解包时发生错误。', rely.name)
-            return false
-        end
-        local path,dpkg_self = self:parse(tpath)
-        if not (path and dpkg_self) then
-            return false
-        end
-        if not self:verify() then
-            Log:Error('无法处理依赖 %s, 因为无法验证其软件包。', rely.name)
-            return false
-        end --- pre-check-completed.
-        ext_need_install[#ext_need_install + 1] = { rely.name, dpath }
-    end
-    for n, pk in pairs(ext_need_install) do
-        if not self:install(pk[2], true) then
-            Log:Error('无法处理依赖 %s, 因为安装失败。', pk[1])
-            return false
-        else
-            Log:Info('(%d/%d) 正在安装 %s ...',n,#ext_need_install,pk[1])
         end
     end
-    return true
+    return rtn
 end

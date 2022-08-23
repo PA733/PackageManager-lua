@@ -66,13 +66,28 @@ function SoftwareManager:getUuidByName(name)
     return nil
 end
 
+---通过UUID获取软件包名称
+---@param uuid string
+---@return string|nil
+function SoftwareManager:getNameByUuid(uuid)
+    local pkg = self:get(uuid)
+    if pkg then
+        return pkg:getName()
+    end
+    local se = RepoManager:search(uuid,false,'uuid',nil,nil,1)
+    if se then
+        return se[1].name
+    end
+    return nil
+end
+
 ---删除软件包
 ---@param uuid string 软件包唯一ID
 ---@param purge? boolean 是否删除数据文件
 ---@return boolean 是否成功删除
 ---@return boolean 删除过程中是否遇到错误
 function SoftwareManager:remove(uuid, purge)
-    local pkg = self:getInstalled(uuid)
+    local pkg = self:get(uuid)
     if not pkg then
         Log:Error('软件包 %s 未安装，无法卸载。', uuid)
         return false, true
@@ -120,7 +135,7 @@ end
 ---@param uuid string
 ---@return boolean 是否成功删除
 function SoftwareManager:purge(uuid)
-    local pkg = self:getInstalled(uuid)
+    local pkg = self:get(uuid)
     if not pkg then
         Log:Error('软件包 %s 未安装，无法删除数据文件。', uuid)
         return false

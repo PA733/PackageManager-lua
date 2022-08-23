@@ -160,13 +160,42 @@ function RepoManager:getAllEnabled()
     return rtn
 end
 
+function RepoManager:isLegalName(str)
+    return not (
+        str:find('\\') or
+        str:find('/') or
+        str:find('*') or
+        str:find('?') or
+        str:find('"') or
+        str:find('<') or
+        str:find('>') or
+        str:find('|') or
+        str:find('_')
+    )
+end
+
 ---在全部仓库中搜索
----@param pattern string
----@param identifier boolean 是否提供的是UUID
----@param limit? number
----@return table
-function RepoManager:search(pattern,identifier,limit)
-    
+---@param pattern string 关键词, 可以是模式匹配字符串
+---@param topOnly? boolean 只在顶级仓库搜索, 默认否
+---@param matchBy? string **name** or uuid
+---@param version? string 版本匹配表达式
+---@param tags? table 要求包含tags列表
+---@param limit? number 最大结果数量, 默认无限制
+---@return table 结果
+function RepoManager:search(pattern,topOnly,matchBy,version,tags,limit)
+    local rtn = {}
+    local searchs
+    if not topOnly then
+        searchs =  self:getAllEnabled()
+    else
+        searchs = self:getPriorityList()[1]
+    end
+    for _,uuid in pairs(searchs) do
+        local repo = self:get(uuid)
+        assert(repo)
+        array.concat(rtn,repo:search(pattern,matchBy,version,tags,limit))
+    end
+    return rtn
 end
 
 return RepoManager

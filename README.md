@@ -1,5 +1,10 @@
 # LPM
-> **Testing...**  
+> **todo**
+
+1. InstalledPackage/Package Instance.  
+2. Some frontend command adapt.
+3. `--fix-missing` param.
+4. All code review.  
 
 The package manager for LiteLoaderBDS, made by Lua.
 
