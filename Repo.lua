@@ -89,12 +89,12 @@ end
 ---@return boolean
 function Repo:setStatus(enable)
     if #manager:getAllEnabled() == 1 and not enable then
-        Log:Error('无法更新 %s 状态，至少启用一个仓库。')
+        Log:Error('无法更新 %s 状态，必须先启用另一个仓库。',self:getName())
         return false
     end
     self.enabled = enable
     manager:save(self)
-    Log:Info('仓库 %s 的启用状态已更新为 %s。')
+    Log:Info('仓库 %s 的启用状态已更新为 %s。',self:getName(),enable)
     return true
 end
 
@@ -237,10 +237,15 @@ function Repo:loadPkgs()
         if name:sub(1,prefix:len()) ~= prefix then
             return
         end
-        local data = JSON:parse(path..name)
+        local data = JSON:parse(Fs:readFrom(path..name))
         if not (data and data.data) then
             Log:Error('加载 %s 时出错!',name)
             return
+        end
+        local cls = name:sub(name:len()-name:reverse():find('_')+2,name:len()-5)
+        for k,_ in pairs(data.data) do
+            data.data[k].class = cls
+            data.data[k].repo = self:getName()
         end
         array.concat(self.pkgs,data.data)
     end)
@@ -362,4 +367,4 @@ function ResourceGroup:getLastUpdated()
     return rtn
 end
 
-return Repo
+return Repo,ResourceGroup

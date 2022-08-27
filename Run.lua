@@ -401,33 +401,45 @@ Order.Search = Command:command 'search'
     :summary '搜索软件包'
     :description '此命令将按照要求在数据库中搜索软件包'
     :action(function(dict)
-        local result = RepoManager:search(dict.name, dict.use_uuid)
-        if #result.data == 0 then
-            Log:Error('找不到名为 %s 的软件包', dict.name)
+        local match_by = 'name'
+        if dict.use_uuid then
+            match_by = 'uuid'
+        end
+        if dict.tags then
+            dict.tags = dict.tags:gsub('，',','):gsub(' ',''):split(',')
+        end
+        if dict.limit then
+            dict.limit = tonumber(dict.limit[1])
+        end
+        local result = RepoManager:search(dict.pattern, dict.top_only,match_by,dict.version,dict.tags,dict.limit)
+        if #result == 0 then
+            Log:Error('找不到名为 %s 的软件包', dict.pattern)
             return
         end
-        if result.isTop then
-            Log:Info('这是来自最高优先级仓库的结果:')
-        end
-        for n, res in pairs(result.data) do
-            Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.uuid):getName(), res.class, res.name, res.version)
+        for n, res in pairs(result) do
+            Log:Print('[%s] >> (%s/%s) %s - %s', n, res.repo, res.class, res.name, res.version)
         end
         Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
-        Log:Print('(%s-%s) > ', 1, #result.data)
-        local chosed = result.data[tonumber(io.read())]
+        Log:Write('(%s-%s) > ', 1, #result)
+        local chosed = result[tonumber(io.read())]
         if not chosed then
             return
         end
-        Log:Info('软件包详细信息:')
-        Log:Info('名称: %s', chosed.name)
-        Log:Info('唯一标识符: %s', chosed.uuid)
-        Log:Info('版本: %s', chosed.versio)
-        Log:Info('贡献者: %s', chosed.contributors)
-        Log:Info('简介: %s', chosed.description)
+        Log:Info(('软件包: %s\n版本: %s\n贡献者: %s\n主页: %s\n标签: %s\n介绍: %s'):format(
+            chosed.name,
+            chosed.version,
+            chosed.contributors,
+            chosed.homepage,
+            table.concat(chosed.tags,','),
+            table.concat(chosed.description,'\n')
+        ))
     end)
-Order.Search:argument('name', '软件包名称'):args '?'
+Order.Search:argument('pattern', '用于模式匹配的字符串/或UUID')
+Order.Search:option('--version -v', '版本匹配表达式'):args '?'
+Order.Search:option('--tags', '标签匹配列表，使用逗号分割'):args '?'
+Order.Search:option('--limit', '限制结果数量，默认无限制'):args '?'
 Order.Search:flag('--use-uuid', '使用UUID查找')
-Order.Search:flag('--strict-mode', '关闭模糊匹配')
+Order.Search:flag('--top-only', '只在最高优先级仓库中查找')
 
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Helper ||||||||||||||||| --
