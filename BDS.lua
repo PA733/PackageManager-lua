@@ -58,7 +58,7 @@ function BDS:init()
                 Log:Write('(0-%s) > ',#bds_list)
                 local chosed = tonumber(io.read())
                 if chosed then
-                    if chosed > 0 and chosed < #bds_list then
+                    if chosed > 0 and chosed <= #bds_list then
                         new_dir = bds_list[chosed]
                     end
                     break

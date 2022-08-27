@@ -245,7 +245,7 @@ function Repo:loadPkgs()
         local cls = name:sub(name:len()-name:reverse():find('_')+2,name:len()-5)
         for k,_ in pairs(data.data) do
             data.data[k].class = cls
-            data.data[k].repo = self:getName()
+            data.data[k].repo = self:getUUID()
         end
         array.concat(self.pkgs,data.data)
     end)

@@ -23,7 +23,13 @@ function RepoManager:init()
         Fs:writeTo(self.dir_cfg,JSON:stringify {
             format_version = Version:getNum(2),
             priority = {},
-            repos = {}
+            repos = {
+                ["2ae709c3-31c2-41cc-8ced-4686faaabae9"] = {
+                    enabled = true,
+                    metafile = "https://raw.githubusercontent.com/Redbeanw44602/TestRepo/main/self.json",
+                    using = "latest"
+                }
+            }
         })
     end
     self.loaded = JSON:parse(Fs:readFrom(self.dir_cfg)).repos

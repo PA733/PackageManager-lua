@@ -25,12 +25,12 @@ require "Environment"
 require "Version"
 require "I18N"
 require "Settings"
-require "BDS"
 require "RepoManager"
 require "SoftwareManager"
 require "Package"
 require "Software"
 require "Repo"
+require "BDS"
 
 ----------------------------------------------------------
 -- |||||||||||||||||| Initialization |||||||||||||||||| --
@@ -83,27 +83,28 @@ Order.Install = Command:command 'install'
         local temp_main,pkgname
         if name:sub(name:len() - 3) ~= '.' .. Package.suffix then
             local result = RepoManager:search(dict.name, dict.use_uuid)
-            if #result.data == 0 then
+            if #result == 0 then
                 Log:Error('找不到名为 %s 的软件包', dict.name)
                 return
             end
-            if not result.isTop then
-                Log:Warn('在最高优先级仓库中找不到 %s, 以下是来自其他仓库的结果, 输入序号以选择或回车取消安装。')
-            end
-            for n, res in pairs(result.data) do
-                Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.uuid):getName(), res.class, res.name, res.version)
+            for n, res in pairs(result) do
+                Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.repo):getName(), res.class, res.name, res.version)
             end
             Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
-            Log:Print('(%s-%s) > ', 1, #result.data)
-            local chosed = result.data[tonumber(io.read())]
+            Log:Write('(%s-%s) > ', 1, #result)
+            local chosed = result[tonumber(io.read())]
             if not chosed then
                 return
             end
             pkgname = chosed.name
             Log:Info('正在下载 %s ...', pkgname)
-            temp_main = Temp:getFile()
+            temp_main = Temp:getFile('lpk')
+            local url = chosed.file
+            if not url or not Cloud:parseLink(url) then
+                url = ('%spackages/%s_%s.%s'):format(Fs:getFileAtDir(RepoManager:get(chosed.repo):getLink()),chosed.name,chosed.version,Package.suffix)
+            end
             if not Cloud:NewTask {
-                url = chosed.download,
+                url = url,
                 writefunction = Fs:open(temp_main, 'wb')
             } then
                 Log:Error('下载 %s 时发生错误。', pkgname)
@@ -113,7 +114,10 @@ Order.Install = Command:command 'install'
             temp_main = name
             pkgname = '本地软件包'
         end
-        SoftwareManager:fromFile(temp_main):install()
+        local sw = SoftwareManager:fromFile(temp_main)
+        if sw then
+            sw:install()
+        end
     end)
 Order.Install:argument('name', '软件包名称')
 Order.Install:flag('--use-uuid', '使用UUID索引')
@@ -417,7 +421,7 @@ Order.Search = Command:command 'search'
             return
         end
         for n, res in pairs(result) do
-            Log:Print('[%s] >> (%s/%s) %s - %s', n, res.repo, res.class, res.name, res.version)
+            Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.repo):getName(), res.class, res.name, res.version)
         end
         Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
         Log:Write('(%s-%s) > ', 1, #result)

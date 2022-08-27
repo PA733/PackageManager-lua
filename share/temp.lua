@@ -18,6 +18,7 @@ local function getRandStr()
 end
 
 function Temp:init()
+    Fs:mkdir(self.baseDir)
     return self:free()
 end
 
@@ -26,11 +27,13 @@ function Temp:free()
 end
 
 ---获取一个临时文件，返回路径。
+---@param ext? string
 ---@return string
-function Temp:getFile()
+function Temp:getFile(ext)
     local n
+    ext = ext or ''
     while true do
-        n = self.baseDir..getRandStr()
+        n = self.baseDir..getRandStr() .. '.' .. ext
         if not Fs:isExist(n) then
             break
         end
