@@ -15,26 +15,40 @@ Software = {
 local Log = Logger:new('Software')
 local manager = SoftwareManager
 
+---获取软件包UUID
+---@return string
 function Software:getUUID()
     return self.uuid
 end
 
+---获取软件包名称
+---@return string
 function Software:getName()
     return self.meta.name
 end
 
+---获取软件包版本
+---@return string
 function Software:getVersion()
     return self.meta.version
 end
 
+---获取贡献者列表
+---@return table
 function Software:getContributors()
     return self.meta.contributors:split(',')
 end
 
+---获取标签列表
+---@return table
 function Software:getTags()
     return self.meta.tags
 end
 
+---获取依赖信息
+---@param ntree NodeTree
+---@param list table
+---@return table
 function Software:getDependents(ntree,list)
     local rtn = {
         node_tree = ntree or NodeTree:create(self:getName()),
@@ -64,18 +78,26 @@ function Software:getConflict()
     return self.meta.conflict
 end
 
+---获取数据路径
+---@return table
 function Software:getDataPaths()
     return self.meta.paths.data or {}
 end
 
+---获取已安装文件路径
+---@return table
 function Software:getInstalledPaths()
     return self.meta.paths.installed or {}
 end
 
+---获取主页地址
+---@return string
 function Software:getHomepage()
     return self.meta.homepage
 end
 
+---获取简介
+---@return string
 function Software:buildDescription()
     return ('软件包: %s\n版本: %s\n贡献者: %s\n主页: %s\n标签: %s\n介绍: %s').format(
         self:getName(),
