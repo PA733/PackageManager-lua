@@ -188,7 +188,7 @@ function Repo:getAvailableGroups(updateMode)
     local ver = BDS:getVersion()
     local can_use = {}
     for _,gp in pairs(self:getMeta(updateMode).root.groups) do
-      if ApplicableVersionChecker:check(ver,gp.required_game_version) then
+      if Version:match(ver,gp.required_game_version) then
         can_use[#can_use+1] = gp.name
       end
     end
@@ -273,14 +273,14 @@ function Repo:search(pattern,matchBy,version,tags,limit)
     for _,info in pairs(self.pkgs) do
         if matchBy == 'name' then
             if info.name:find(pattern)
-                and ApplicableVersionChecker:check(info.version,version)
+                and Version:match(info.version,version)
                 and matchTags(info.tags)
             then
                 rtn[#rtn+1] = info
             end
         elseif matchBy == 'uuid' then
             if info.uuid == pattern
-                and ApplicableVersionChecker:check(info.version,version)
+                and Version:match(info.version,version)
                 and matchTags(info.tags)
             then
                 rtn[#rtn+1] = info

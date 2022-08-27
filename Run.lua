@@ -129,7 +129,7 @@ Order.Update = Command:command 'update'
         Log:Info('正在获取待更新软件包列表...')
         local need_update = {}
         for _,uuid in pairs(SoftwareManager:getAll()) do
-            local old = SoftwareManager:get(uuid).version
+            local old = SoftwareManager:fromInstalled(uuid).version
             local new = RepoManager:search(uuid,true)
             if #new.data == 0 then
                 Log:Error('无法在仓库中找到 %s ！',old.name)
@@ -185,9 +185,9 @@ Order.List = Command:command 'list'
         local list = SoftwareManager:getAll()
         Log:Info('已安装 %s 个软件包', #list)
         for n, uuid in pairs(list) do
-            local pkg = SoftwareManager:get(uuid)
+            local pkg = SoftwareManager:fromInstalled(uuid)
             if pkg then
-                Log:Info('[%d] %s - %s (%s)', n, pkg.name, pkg.version, uuid)
+                Log:Info('[%d] %s - %s (%s)', n, pkg:getName(), pkg:getVersion(), uuid)
             end
         end
     end)
@@ -222,7 +222,7 @@ Order.AddRepo = Command:command 'add-repo'
         local can_use = {}
         local use_latest = false
         for _, gp in pairs(parsed_file.root.groups) do
-            if ApplicableVersionChecker:check(ver, gp.required_game_version) then
+            if Version:match(ver, gp.required_game_version) then
                 if gp.name == 'latest' and BDS:isLatest() then
                     use_latest = true
                     break

@@ -20,46 +20,7 @@ Package = {
 
 }
 local Log = Logger:new('Package')
-
----从软件包路径创建包对象
----@param dir string
----@return Package|nil
-function Package:fromFile(dir)
-    Log:Info('正在解析软件包...')
-    local stat, unpacked_path = P7zip:extract(dir)
-    if not stat then
-        Log:Error('解压缩软件包时出现异常。')
-        return nil
-    end
-    for _, n in pairs(self.root_check_list) do
-        if not Fs:isExist(unpacked_path .. n) then
-            Log:Error('软件包不合法，缺少 %s。', n)
-            return nil
-        end
-    end
-    local pkgInfo = JSON:parse(Fs:readFrom(unpacked_path .. 'self.json'))
-    if not pkgInfo then
-        Log:Error('读取包信息时出现异常。')
-        return nil
-    end
-    if pkgInfo.format_version ~= Version:getNum(5) then
-        Log:Error('软件包自述文件版本不匹配。')
-        return nil
-    end
-    local verification = JSON:parse(Fs:readFrom(unpacked_path .. 'verification.json'))
-    if not verification then
-        Log:Error('读取校验信息时出现异常。')
-        return nil
-    end
-    local origin = {}
-    setmetatable(origin,self)
-    self.__index = self
-    origin.package_dir = dir
-    origin.meta = pkgInfo
-    origin.verification = verification
-    origin.unpacked_path = unpacked_path
-    return origin
-end
+local manager = SoftwareManager
 
 ---获取名称
 ---@return string
@@ -74,14 +35,9 @@ function Package:getUUID()
 end
 
 ---获取版本
----@param release boolean 是否为发布序号
----@return string|number
-function Package:getVersion(release)
-    if release then
-        return self.meta.release
-    else
-        return self.meta.version
-    end
+---@return string
+function Package:getVersion()
+    return self.meta.version
 end
 
 ---获取贡献者列表
@@ -101,11 +57,11 @@ function Package:getDependents(ntree,list)
     }
     local depends = self.meta.depends
     for _,info in pairs(depends) do
-        local sw = SoftwareManager:get(info.uuid)
+        local sw = manager:fromInstalled(info.uuid)
         if sw then
-            rtn.node_tree:branch(sw.name):setNote('已安装')
+            rtn.node_tree:branch(sw:getName()):setNote('已安装')
         else
-            local res = SoftwareManager:search(info.uuid,false,true)
+            local res = manager:search(info.uuid,false,true)
             if #res.data == 0 then
                 rtn.node_tree:branch(info.uuid):setNote('未找到')
             else
@@ -141,7 +97,7 @@ end
 ---检查是否适配当前游戏版本
 ---@return boolean
 function Package:checkRequiredGameVersion()
-    if not ApplicableVersionChecker:check(BDS:getVersion(),self.meta.applicable_game_version) then
+    if not Version:match(BDS:getVersion(),self.meta.applicable_game_version) then
         Log:Error('软件包与当前服务端版本不适配，安全检查失败。')
         return false
     end
@@ -151,13 +107,9 @@ end
 ---获取描述信息
 ---@return string
 function Package:buildDescription()
-    local deps = ''
-    for _,depend in pairs(self:getDependents()) do
-        deps = deps .. RepoManager:search(depend.uuid,true)
-    end
     return ('软件包: %s\n版本: %s\n贡献者: %s\n主页: %s\n标签: %s\n介绍: %s').format(
         self:getName(),
-        self:getVersion(false),
+        self:getVersion(),
         table.concat(self:getContributors(),','),
         self:getHomepage(),
         table.concat(self:getTags(),','),
@@ -170,10 +122,10 @@ end
 ---@return boolean
 function Package:verify(updateMode)
     Log:Info('正在校验包...')
-    if not updateMode and SoftwareManager:get(self:getUUID()) then
+    if not updateMode and manager:fromInstalled(self:getUUID()) then
         Log:Error('软件包已安装过，安全检查失败。')
     end
-    if not updateMode and SoftwareManager:getUuidByName(self:getName()) then
+    if not updateMode and manager:getUuidByName(self:getName()) then
         Log:Error('软件包与已安装软件有重名，安全检查失败。')
         return false
     end
@@ -184,20 +136,20 @@ function Package:verify(updateMode)
     local verification = self:getVerification()
     local unpacked = self.unpacked_path
     local stopAndFailed = false
-    local allow_unsafe = Settings:get('installer.allow_unsafe_directory') or SoftwareManager.Helper:isWhitePackage(self:getUUID())
+    local allow_unsafe = Settings:get('installer.allow_unsafe_directory') or manager.Helper:isWhitePackage(self:getUUID())
     Fs:iterator(unpacked .. 'content/', function(nowpath, file)
         if stopAndFailed then
             return
         end
         local ori_path = nowpath .. file
         local vpath = ori_path:sub((unpacked .. 'content/'):len() + 1)
-        if not allow_unsafe and not SoftwareManager.Helper:isSafeDirectory(vpath) then
+        if not allow_unsafe and not manager.Helper:isSafeDirectory(vpath) then
             Log:Error('软件包尝试将文件安装到到不安全目录，安全检查失败。')
             stopAndFailed = true
             return
         end
         for _, dpath in pairs(meta.paths.data) do
-            if not allow_unsafe and not SoftwareManager.Helper:isSafeDirectory(dpath) then
+            if not allow_unsafe and not manager.Helper:isSafeDirectory(dpath) then
                 Log:Error('软件包数据文件可能存放在不安全的目录，安全检查失败。')
                 stopAndFailed = true
                 return
@@ -218,7 +170,7 @@ end
 ---@return boolean
 function Package:install()
     local uuid = self:getUUID()
-    if SoftwareManager:get(uuid) then
+    if manager:fromInstalled(uuid) then
         Log:Error('软件包 %s 已安装，不可以重复安装。', uuid)
         return false
     end
@@ -230,7 +182,7 @@ function Package:install()
         return false
     end
     local name = self:getName()
-    Log:Info('%s (%s) - %s', name, self:getVersion(false), self:getContributors())
+    Log:Info('%s (%s) - %s', name, self:getVersion(), self:getContributors())
     io.write(('是否安装 %s (y/N)? '):format(name))
     local chosed = io.read():lower()
     if chosed ~= 'y' then
@@ -285,7 +237,7 @@ function Package:install()
         Log:Info('(%s/%s) 复制 -> %s', count, all_count, relative_inst_path_file)
         installed[#installed + 1] = relative_inst_path_file
     end)
-    if SoftwareManager:registerChanged(self.meta,installed) then
+    if manager:registerChanged(self.meta,installed) then
         Log:Info('%s 已成功安装。', name)
     else
         Log:Error('安装未成功。')
@@ -298,12 +250,12 @@ end
 function Package:update()
     local uuid = self:getUUID()
     local name = self:getName()
-    local old_IDPkg = SoftwareManager:get(uuid)
+    local old_IDPkg = manager:fromInstalled(uuid)
     if not old_IDPkg then
         Log:Info('%s 还未安装，因此无法升级。', name)
         return false
     end
-    if old_IDPkg.release > self:getVersion(true) then
+    if Version:isBigger(old_IDPkg:getVersion(),self:getVersion()) then
         Log:Info('不可以向旧版本升级')
         return false
     end
@@ -314,8 +266,8 @@ function Package:update()
     if not self:handleDependents() then
         return false
     end
-    local version = self:getVersion(false)
-    Log:Info('%s (%s->%s) - %s', name, old_IDPkg.version, version, self:getContributors())
+    local version = self:getVersion()
+    Log:Info('%s (%s->%s) - %s', name, old_IDPkg:getVersion(), version, self:getContributors())
     io.write(('是否升级 %s (y/N)? '):format(name))
     local chosed = io.read():lower()
     if chosed ~= 'y' then
@@ -329,6 +281,7 @@ function Package:update()
     local overwrite_noask = false
     local jumpout_noask = false
     local bds_dir = BDS:getRunningDirectory()
+    local installed_paths = old_IDPkg:getInstalledPaths()
     Fs:iterator(unpacked_path .. 'content/', function(nowpath, file)
         local ori_path_file = nowpath .. file
         local inst_path_file = bds_dir .. ori_path_file:sub((unpacked_path .. 'content/'):len() + 1)
@@ -340,7 +293,7 @@ function Package:update()
         end
         count = count + 1
         if not overwrite_noask and Fs:isExist(inst_path_file) and
-            not array.fetch(old_IDPkg.paths.installed, relative_inst_path_file) then
+            not array.fetch(installed_paths, relative_inst_path_file) then
             if jumpout_noask then
                 return
             end
@@ -368,12 +321,12 @@ function Package:update()
         Log:Info('(%s/%s) 复制 -> %s', count, all_count, relative_inst_path_file)
         installed[#installed + 1] = relative_inst_path_file
     end)
-    for _, ipath in pairs(old_IDPkg.paths.installed) do
+    for _, ipath in pairs(installed_paths) do
         if not installed[ipath] then
             Log:Warn('请注意，在版本 %s 中，"%s" 被弃用。', version, ipath)
         end
     end
-    if SoftwareManager:registerChanged(self.meta,installed) then
+    if manager:registerChanged(self.meta,installed) then
         Log:Info('%s 已成功升级。', name)
     else
         Log:Error('升级失败。')
@@ -393,8 +346,8 @@ function Package:handleDependents(scheme)
     }
     local ntree = rtn.ntree
     for _, against in pairs(self:getConflict()) do
-        local instd = SoftwareManager:get(against.uuid)
-        if instd and ApplicableVersionChecker:check(instd.version, against.version) then
+        local instd = manager:fromInstalled(against.uuid)
+        if instd and Version:match(instd:getVersion(), against.version) then
             rtn.status = false
             rtn.errors[#rtn.errors+1] = {
                 type = 'conflict',
@@ -407,10 +360,10 @@ function Package:handleDependents(scheme)
     end
     local depends = self:getDependents()
     for _, rely in pairs(depends) do --- short information for depends(rely)
-        local insted = SoftwareManager:get(rely.uuid)
-        local name = SoftwareManager:getNameByUuid(rely.uuid)
+        local insted = manager:fromInstalled(rely.uuid)
+        local name = manager:getNameByUuid(rely.uuid)
         name = name or rely.uuid
-        if insted and ApplicableVersionChecker:check(insted.version,rely.version) then
+        if insted and Version:match(insted:getVersion(),rely.version) then
             ntree:branch(name):setNote('已安装')
         else
             local try = RepoManager:search(rely.uuid,false,'uuid',rely.version,nil,1)
@@ -422,7 +375,7 @@ function Package:handleDependents(scheme)
                     version = rely.version,
                     name = name
                 }
-            elseif insted and insted:getVersion(true) <= try.release then
+            elseif insted and Version:isBigger(insted:getVersion(),try:getVersion()) then
                 ntree:branch(name):setNote('不能降级')
                 rtn.errors[#rtn.errors+1] = {
                     type = 'cantdegrade',

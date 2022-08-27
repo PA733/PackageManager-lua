@@ -1,7 +1,7 @@
 # LPM
 > **todo**
 
-1. InstalledPackage/Package Instance.  
+1. i18n
 2. Some frontend command adapt.
 3. `--fix-missing` param.
 4. All code review.  
