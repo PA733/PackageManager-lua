@@ -58,8 +58,6 @@ function Version:getStr(num)
     return ('%s.%s.%s'):format(a.major,a.minor,a.revision)
 end
 
-ApplicableVersionChecker = {}
-
 ---检查`ver1`是否符合`method`  
 -- **比较运算符**  
 -- *大于*＞ *小于*＜ *等于*＝ *大于等于*≥ *小于等于*≤  
@@ -73,16 +71,16 @@ ApplicableVersionChecker = {}
 ---@param ver1 string
 ---@param method string
 ---@return boolean
-function ApplicableVersionChecker:check(ver1,method)
+function Version:match(ver1,method)
     local sym = method:sub(1,1)
     if sym == '*' then
         return true
     else
         local t = method:sub(3)
         if method:sub(1,2) == '>=' then
-            return self:check(ver1,'>'..t) or self:check(ver1,'='..t)
+            return self:match(ver1,'>'..t) or self:match(ver1,'='..t)
         elseif method:sub(1,2) == '<=' then
-            return self:check(ver1,'<'..t) or self:check(ver1,'='..t)
+            return self:match(ver1,'<'..t) or self:match(ver1,'='..t)
         end
     end
     if tonumber(sym) then
@@ -133,8 +131,16 @@ function ApplicableVersionChecker:check(ver1,method)
         end
         return true
     end
-    Log:Error('[ApplicableChecker] Unknown symbol found "%s".',sym)
+    Log:Error('Unknown symbol found "%s".',sym)
     return false
 end
 
-return Version,ApplicableVersionChecker
+---检查`ver1`是否大于`ver2`
+---@param ver1 string
+---@param ver2 string
+---@return boolean
+function Version:isBigger(ver1,ver2)
+    return self:match(ver1,'>'..ver2)
+end
+
+return Version

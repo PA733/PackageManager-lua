@@ -158,7 +158,7 @@ function BDS:init()
     --- Is latest.
     self.isLatestVersion = true
     for _,ver in pairs(pdb.pdb) do
-        if ApplicableVersionChecker:check(self.version,'<'..ver) then
+        if Version:isBigger(ver,self.version) then
             self.isLatestVersion = false
             break
         end
