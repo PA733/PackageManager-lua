@@ -69,12 +69,14 @@ local function rawLog(logger,type,what)
     else
         color = logger.color[type]
     end
-    io.write(
-        color.date..os.date('%X')..' ',
-        color.type..type..' ',
-        color.title..'['..logger.title..'] '..what,
-        color.text..'\n'
-    )
+    for _,text in pairs(what:split('\n')) do
+        io.write(
+            color.date..os.date('%X')..' ',
+            color.type..type..' ',
+            color.title..'['..logger.title..'] '..text,
+            color.text..'\n'
+        )
+    end
 end
 
 --- 全局禁用日志器颜色
