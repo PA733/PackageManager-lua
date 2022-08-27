@@ -104,7 +104,7 @@ function RepoManager:save(instance)
         local m = self.loaded[uuid]
         m.enabled = instance:isEnabled()
         m.metafile = instance:getLink()
-        m.using = instance:getUsingGroup().name
+        m.using = instance:getUsingGroup():getName()
     end
     Fs:writeTo(self.dir_cfg,JSON:stringify({
         format_version = Version:getNum(2),
@@ -178,7 +178,7 @@ function RepoManager:isLegalName(str)
 end
 
 ---获取资源
----@param type string
+---@param type string `PdbHashTable` | `SpeedTest`
 ---@return string|nil 下载链接
 function RepoManager:getMultiResource(type)
     for _,uuid in pairs(self:getPriorityList()) do

@@ -29,16 +29,16 @@ function Repo:getLink()
 end
 
 ---获取指定仓库自述文件
----@param updateMode? boolean
+---@param netMode? boolean
 ---@return table|nil
-function Repo:getMeta(updateMode)
-    updateMode = updateMode or false
+function Repo:getMeta(netMode)
+    netMode = netMode or false
     local uuid = self:getUUID()
     local res = ''
     if not Fs:isExist(('%s%s.repo'):format(manager.dir,uuid)) then
-        updateMode = true
+        netMode = true
     end
-    if updateMode then
+    if netMode then
         Cloud:NewTask {
             url = self:getLink(),
             writefunction = function (str)
@@ -57,22 +57,13 @@ function Repo:getMeta(updateMode)
         Log:Error('描述文件的版本与管理器不匹配！')
         return nil
     end
-    if updateMode then
-        Fs:writeTo(('%s%s.repo'):format(manager.dir,uuid),JSON:stringify(obj,true))
-    end
     return obj
 end
 
 ---获取正在使用的资源组对象
----@return table|nil
+---@return ResourceGroup|nil
 function Repo:getUsingGroup()
-    local using = self.using
-    for _,cont in pairs(self:getMeta().root.groups) do
-        if cont.name == using then
-            return cont
-        end
-    end
-    return nil
+    return ResourceGroup:fromList(self:getMeta().root.groups,self.using)
 end
 
 ---获取指定仓库的名称
@@ -128,6 +119,12 @@ function Repo:setUsingGroup(name)
     return manager:save(self)
 end
 
+---获取仓库最近更新的时间戳
+---@return integer
+function Repo:getLastUpdated()
+    return self:getUsingGroup():getLastUpdated()
+end
+
 ---更新指定仓库软件包列表
 ---@param firstUpdate? boolean 是否为首次更新
 ---@return boolean
@@ -136,34 +133,40 @@ function Repo:update(firstUpdate)
     if not firstUpdate then
         firstUpdate = not Fs:isExist(('%s%s.repo'):format(manager.dir,uuid))
     end
-    local repo = self:getMeta()
-    local repo_new = self:getMeta(true)
-    if not (repo and repo_new) then
+    local meta_new = self:getMeta(true)
+    if not meta_new then
         return false
     end
-    Log:Info('正在更新仓库 %s ...',repo.name)
+    local name = self:getName()
+    Log:Info('正在更新仓库 %s ...',name)
     Log:Info('正在拉取描述文件...')
-    if repo_new.status == 1 then
-        Log:Warn('无法更新 %s (%s)，因为该仓库正在维护。',repo.name,uuid)
-        return false
-    elseif not firstUpdate and repo.updated >= repo_new.updated then
-        Log:Info('仓库 %s 已是最新了，无需再更新。',repo.name)
-        return true
-    end
     local group = self:getUsingGroup()
     if not group then
         Log:Error('获取正在使用的资源组时出现错误！')
         return false
     end
+    local net_group = ResourceGroup:fromList(meta_new.root.groups,group:getName())
+    if not net_group then
+        Log:Error('远端没有本地正在使用的资源组，建议重新添加该仓库。')
+        return false
+    end
+    if meta_new.status == 1 then
+        Log:Warn('无法更新 %s (%s)，因为该仓库正在维护。',name,uuid)
+        return false
+    elseif not firstUpdate and self:getLastUpdated() >= net_group:getLastUpdated() then
+        Log:Info('仓库 %s 已是最新了，无需再更新。',name)
+        return true
+    end
     Log:Info('正在开始下载...')
+    local hasErr = false
     for n,class in pairs(group.classes) do
-        if not (manager:isLegalName(class.name) and manager:isLegalName(group.name)) then
+        if manager:isLegalName(class.name) and manager:isLegalName(group.name) then
             local path = ('%s/cache/%s_%s_%s.json'):format(manager.dir,uuid,group.name,class.name)
             Log:Info('(%d/%d) 正在下载分类 %s 的软件包列表...',n,#group.classes,class.name)
             local file = Fs:open(path,"wb")
             local url = class.list
             if not Cloud:parseLink(class.list) then
-                url = ('%sgroups/%s'):format(Fs:getFileAtDir(self:getLink()),class.list)
+                url = ('%sgroups/%s/%s'):format(Fs:getFileAtDir(self:getLink()),group.name,class.list)
             end
             local res = Cloud:NewTask {
                 url = url,
@@ -172,22 +175,26 @@ function Repo:update(firstUpdate)
             file:close()
             if not res then
                 Log:Error('(%d/%d) 分类 %s 的软件包列表下载失败！',n,#group.classes,class.name)
+                hasErr = true
                 break
             end
         else
-            Log:Warn('(%d/%d) 群组 %s 的分类 %s 存在不合法字符，跳过...',n,#group.classes,group.name,class.name)
+            Log:Warn('(%d/%d) 分组 %s 的分类 %s 存在不合法字符，跳过...',n,#group.classes,group.name,class.name)
         end
+    end
+    if not hasErr then
+        Fs:writeTo(('%s%s.repo'):format(manager.dir,uuid),JSON:stringify(meta_new,true))
     end
     return true
 end
 
 ---获取可用资源组
----@param updateMode? boolean
----@return table|nil
-function Repo:getAvailableGroups(updateMode)
+---@param netMode? boolean
+---@return string[]|nil
+function Repo:getAvailableGroups(netMode)
     local ver = BDS:getVersion()
     local can_use = {}
-    for _,gp in pairs(self:getMeta(updateMode).root.groups) do
+    for _,gp in pairs(self:getMeta(netMode).root.groups) do
       if Version:match(ver,gp.required_game_version) then
         can_use[#can_use+1] = gp.name
       end
@@ -199,14 +206,8 @@ end
 ---@param name string `PdbHashTable` | `SpeedTest`
 ---@return string|nil
 function Repo:getMultiResource(name)
-    local uuid = manager:getPriorityList()[1]
-    local meta = self:getMeta(uuid)
-    if not meta then
-        return nil
-    end
-    local item = meta.multi[name]
+    local item = self:getMeta().multi[name]
     if not item.enable then
-        Log:Error('当前仓库没有提供 %s。',name)
         return nil
     end
     local url = item.file
@@ -291,6 +292,71 @@ function Repo:search(pattern,matchBy,version,tags,limit)
         end
         if limit > 0 and #rtn >= limit then
             break
+        end
+    end
+    return rtn
+end
+
+---@class ResourceGroup
+ResourceGroup = {
+    name = 'NULL',
+    required_game_version = 'NULL',
+    classes = {}
+}
+
+---从多个group列表中创建资源组对象
+---@param list table
+---@param name string
+---@return ResourceGroup|nil
+function ResourceGroup:fromList(list,name)
+    for _,group in pairs(list) do
+        if group.name == name then
+            return self:create(group)
+        end
+    end
+    return nil
+end
+
+---从表中创建资源组对象
+---@param tab table
+---@return ResourceGroup|nil
+function ResourceGroup:create(tab)
+    if not Version:match(BDS:getVersion(),tab.required_game_version) then
+        return nil
+    end
+    local origin = {}
+    setmetatable(origin,self)
+    self.__index = self
+    origin.name = tab.name
+    origin.classes = tab.classes
+    return origin
+end
+
+---获取资源组名称
+---@return string
+function ResourceGroup:getName()
+    return self.name
+end
+
+---通过名称获取资源类信息
+---@param name string
+---@return table|nil
+function ResourceGroup:getClass(name)
+    for _,class in pairs(self.classes) do
+        if class.name == name then
+            return class
+        end
+    end
+    return nil
+end
+
+---获取上一次更新时间
+---@return integer
+function ResourceGroup:getLastUpdated()
+    local rtn = 0
+    for _,ins in pairs(self.classes) do
+        if ins.updated > rtn then
+            rtn = ins.updated
         end
     end
     return rtn

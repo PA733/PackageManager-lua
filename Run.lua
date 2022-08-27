@@ -8,7 +8,7 @@
     Author: LiteLDev.
 ]]
 
-require "__init__"
+require "Init"
 require "json-safe"
 require "logger"
 require "7zip"
@@ -151,7 +151,7 @@ Order.Update = Command:command 'update'
             end
             need_update[#need_update+1] = {old.name,tfile}
         end
-
+        Log:Info('完成。')
     end)
 Order.Update:argument('name', '软件包名称'):args '?'
 Order.Update:flag('--use-uuid', '使用UUID索引')

@@ -41,7 +41,7 @@ Cloud = {
 function Cloud:parseLink(url)
     for name,protoObj in pairs(Cloud.Protocol) do
         if type(protoObj) == 'table' then
-            for n,prefix in pairs(protoObj.prefix) do
+            for _,prefix in pairs(protoObj.prefix) do
                 if url:sub(1,prefix:len()) == prefix then
                     return name
                 end
@@ -70,7 +70,7 @@ end
 --- **LANZOU** `lanzou://tiansuohao2:pwd=humo`
 ---
 ---@param dict table 需提供 url, writefunction, 可选 ua, header。
----@return any
+---@return boolean
 function Cloud:NewTask(dict)
     local name = self:parseLink(dict.url)
     if not name then
@@ -83,7 +83,7 @@ function Cloud:NewTask(dict)
     end
     local protocol = self.Protocol[name]
     if dict.payload then
-        for k,v in pairs(dict.payload) do
+        for _,v in pairs(dict.payload) do
             dict.k = v
         end
         dict.payload = nil
@@ -103,6 +103,7 @@ function Cloud:NewTask(dict)
         end
         return protocol:get(shareId,passwd,dict)
     end
+    return false
 end
 
 --- 蓝奏云解析下载
@@ -112,8 +113,9 @@ end
 ---@param shareId string 分享ID, 即分享链接末部分
 ---@param passwd? string 密码(如果有), 可以为nil
 ---@param payload table 请求载荷
+---@return boolean
 function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
-    local url = ('https://www.lanzouy.com/%s'):format(shareId)
+    local url = ('https://www.lanzouy.com/%s'):format(shareId) --- not important.
     passwd = passwd or ''
     local L = Logger:new('LanZou')
     L:Info('正在获取下载链接...')
@@ -125,18 +127,18 @@ function Cloud.Protocol.Lanzou:get(shareId,passwd,payload)
         end,
         quiet = true
     }
-    res = JSON:parse(res)
-    if not res then
+    local obj = JSON:parse(res)
+    if not obj then
         L:Error('获取下载链接失败，API返回了错误的信息。')
-        return
+        return false
     end
-    if res.code ~= 200 then
-        L:Error('获取下载链接失败 (%s:%s)',res.code,res.msg)
-        return
+    if obj.code ~= 200 then
+        L:Error('获取下载链接失败 (%s:%s)',obj.code,obj.msg)
+        return false
     end
-    L:Info('正在下载: %s',res.name)
+    L:Info('正在下载: %s',obj.name)
     return Cloud:NewTask {
-        url = res.downUrl,
+        url = obj.downUrl,
         writefunction = payload.writefunction,
         quiet = payload.quiet
     }
@@ -146,6 +148,7 @@ end
 --- HTTP (s) 下载
 ---@param url string 链接
 ---@param payload table 请求载荷
+---@return boolean
 function Cloud.Protocol.Http:get(url,payload)
     local blocks = 40
     local proInfo = {
@@ -161,12 +164,15 @@ function Cloud.Protocol.Http:get(url,payload)
     }
     payload.ua = payload.ua or Cloud.UA
     payload.quiet = payload.quiet or false
+    local tmp_wfunc = ''
     local easy = curl.easy {
         url = url,
         httpheader = payload.header,
         useragent = payload.ua,
         accept_encoding = 'gzip, deflate, br',
-        writefunction = payload.writefunction,
+        writefunction = function (str)
+            tmp_wfunc = tmp_wfunc .. str
+        end,
         progressfunction = function (size,downloaded,uks_1,uks_2)
             local Rec = proInfo
             Rec.call_times = Rec.call_times + 1
@@ -215,11 +221,24 @@ function Cloud.Protocol.Http:get(url,payload)
         ssl_verifyhost = false
     }
     local msf = easy:perform()
+    local code = msf:getinfo_response_code()
     if not payload.quiet then
         Log:Write('\r √ 100%% %s %.2fM/s  (%sM).'..(' '):rep(15)..'\n',('━'):rep(blocks),SizeConv.Byte2Mb(msf:getinfo_speed_download()),SizeConv.Byte2Mb(msf:getinfo_size_download()))
     end
+    if code == 200 then
+        local T = type(payload.writefunction)
+        if T == 'userdata' then
+            payload.writefunction:write(tmp_wfunc)
+        elseif T == 'function' then
+            payload.writefunction(tmp_wfunc)
+        else
+            Log:Error('Unknown writefunction type: %s',T)
+        end
+        easy:close()
+        return true
+    end
     easy:close()
-    return true
+    return false
 end
 
 return Cloud
