@@ -48,16 +48,18 @@ Command = Parser() {
 
 Fs:mkdir('data')
 
-local stat, msg = pcall(function()
+if not xpcall(function()
     assert(Temp:init(), 'TempHelper')
     assert(Settings:init(), 'ConfigManager')
     assert(P7zip:init(), '7zHelper')
     assert(RepoManager:init(), 'RepoManager')
     assert(SoftwareManager:init(), 'LocalPackageManager')
     assert(BDS:init(), 'BDSHelper')
-end)
-if not stat then
+end,function (msg)
+    Log:Debug(msg)
+    Log:Debug(debug.traceback())
     Log:Error('%s 类初始化失败，请检查。', msg)
+end) then
     return
 end
 
@@ -111,7 +113,7 @@ Order.Install = Command:command 'install'
             temp_main = name
             pkgname = '本地软件包'
         end
-        SoftwareManager:install(temp_main)
+        SoftwareManager:fromFile(temp_main):install()
     end)
 Order.Install:argument('name', '软件包名称')
 Order.Install:flag('--use-uuid', '使用UUID索引')
@@ -162,9 +164,9 @@ Order.Remove = Command:command 'remove'
         local uuid = SoftwareManager:getUuidByName(dict.name)
         if not uuid then
             Log:Error('找不到软件包 %s，因此无法删除。', dict.name)
-            return
+        else
+            SoftwareManager:fromInstalled(uuid):remove(dict.purge)
         end
-        SoftwareManager:remove(uuid, dict.purge)
     end)
 Order.Remove:flag('-p --purge', '同时清除数据 (危险)')
 Order.Remove:argument('name', '软件包名称')
@@ -176,9 +178,9 @@ Order.Purge = Command:command 'purge'
         local uuid = SoftwareManager:getUuidByName(dict.name)
         if not uuid then
             Log:Error('找不到软件包 %s，因此无法清除数据。', dict.name)
-            return
+        else
+            SoftwareManager:fromInstalled(uuid):purge()
         end
-        SoftwareManager:purge(uuid)
     end)
 Order.Purge:argument('name', '软件包名称')
 
