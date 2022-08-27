@@ -1,9 +1,7 @@
 # Dev
-vscode/
 test*
-libcurl.dll
-sqlite3.dll
 DEVMODE
+lpm.cmd
 
 # Runtime
 data/

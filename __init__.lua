@@ -6,10 +6,11 @@
 
 package.path = package.path..';./share/?.lua;./share/json/?.lua'
 package.cpath = package.cpath..';./lib/?.dll'
-FileSystem = require('filesystem')
+
+require('filesystem')
 
 --- Check developer mode.
-DevMode = FileSystem:isExist('DevMode')
+DevMode = Fs:isExist('DevMode')
 
---- Change Code Page.
+--- Fix code page.
 os.execute('chcp 65001 > nul')
