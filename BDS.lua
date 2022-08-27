@@ -7,7 +7,8 @@
 local Log = Logger:new('BDS')
 BDS = {
     dir = '',
-    dir_pdb_hash = 'data/pdb.json'
+    dir_pdb_hash = 'data/pdb.json',
+    version = 'NULL'
 }
 
 local function check_bds(path)
@@ -88,7 +89,7 @@ function BDS:init()
     self.dir = bdsdir
 
     local function update_pdb_hash_table(check_file_updated_time)
-        local link = Repo:getMultiResource("PdbHashTable")
+        local link = RepoManager:getMultiResource("PdbHashTable")
         if not link then
             Log:Error('获取 Ver-PdbHash 下载链接失败。')
             return

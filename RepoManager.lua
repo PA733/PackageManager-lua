@@ -160,6 +160,9 @@ function RepoManager:getAllEnabled()
     return rtn
 end
 
+---判断名称是否合法
+---@param str string
+---@return boolean
 function RepoManager:isLegalName(str)
     return not (
         str:find('\\') or
@@ -172,6 +175,19 @@ function RepoManager:isLegalName(str)
         str:find('|') or
         str:find('_')
     )
+end
+
+---获取资源
+---@param type string
+---@return string|nil 下载链接
+function RepoManager:getMultiResource(type)
+    for _,uuid in pairs(self:getPriorityList()) do
+        local link = self:get(uuid):getMultiResource(type)
+        if link then
+            return link
+        end
+    end
+    return nil
 end
 
 ---在全部仓库中搜索
