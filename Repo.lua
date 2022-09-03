@@ -264,6 +264,7 @@ function Repo:search(pattern,matchBy,version,tags,limit)
     version = version or '*'
     tags = tags or {}
     limit = limit or -1
+    pattern = pattern:lower()
     self:loadPkgs()
     local function matchTags(taggs)
         if #tags == 0 then
@@ -278,7 +279,7 @@ function Repo:search(pattern,matchBy,version,tags,limit)
     end
     for _,info in pairs(self.pkgs) do
         if matchBy == 'name' then
-            if info.name:find(pattern)
+            if info.name:lower():find(pattern)
                 and Version:match(info.version,version)
                 and matchTags(info.tags)
             then
