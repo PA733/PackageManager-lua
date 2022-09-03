@@ -93,7 +93,7 @@ end
 ---@return boolean
 function Fs:mkdir(path)
     path = directory(path)
-    local dirs = string.split(path,dir_sym)
+    local dirs = path:split(dir_sym)
     for k,v in pairs(dirs) do
         wf.mkdir(table.concat(dirs,dir_sym,1,k)..dir_sym)
     end

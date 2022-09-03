@@ -32,6 +32,8 @@ require "Software"
 require "Repo"
 require "BDS"
 
+require "tools.Publisher"
+
 ----------------------------------------------------------
 -- |||||||||||||||||| Initialization |||||||||||||||||| --
 ----------------------------------------------------------
@@ -444,6 +446,21 @@ StaticCommand.Search:option('--tags', '标签匹配列表，使用逗号分割')
 StaticCommand.Search:option('--limit', '限制结果数量，默认无限制'):args '?'
 StaticCommand.Search:flag('--use-uuid', '使用UUID查找')
 StaticCommand.Search:flag('--top-only', '只在最高优先级仓库中查找')
+
+StaticCommand.GenerateVerification = Command:command 'generate-verification'
+    :summary '[DEV] 生成校验文件'
+    :description '此命令将在提供的目录下生成对应的校验文件'
+    :action(function (dict)
+        local rtn,fail_file = Publisher:generateVerification(dict.path)
+        if rtn == 0 then
+            Log:Info('生成成功。')
+        elseif rtn == -1 then
+            Log:Error('路径不存在或不是正确的软件包。')
+        elseif rtn == -2 then
+            Log:Error('为文件 %s 计算SHA1时出错。',fail_file)
+        end
+    end)
+StaticCommand.GenerateVerification:argument('path','半成品软件包路径')
 
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Helper ||||||||||||||||| --
