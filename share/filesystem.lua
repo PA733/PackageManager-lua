@@ -44,7 +44,9 @@ function Fs:iterator(path,callback)
     for file in wf.dir(path) do
         if file ~= '.' and file ~= '..' then
             local attr = wf.attributes(path..file)
-            if attr and attr.mode == 'directory' then
+            if not attr then
+                -- do nothing.
+            elseif attr.mode == 'directory' then
                 self:iterator(path..file..dir_sym,callback)
             elseif attr.mode == 'file' then
                 callback(path,file)
