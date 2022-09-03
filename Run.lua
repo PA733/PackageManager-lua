@@ -90,7 +90,7 @@ StaticCommand.Install = Command:command 'install'
             for n, res in pairs(result) do
                 Log:Print('[%s] >> (%s/%s) %s - %s', n, RepoManager:get(res.repo):getName(), res.class, res.name, res.version)
             end
-            Log:Print('您可以输入结果序号来查看软件包详细信息，或回车退出程序。')
+            Log:Print('您可以输入结果序号来安装软件包，或回车退出程序。')
             Log:Write('(%s-%s) > ', 1, #result)
             local chosed = result[tonumber(io.read())]
             if not chosed then

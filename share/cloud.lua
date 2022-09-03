@@ -229,6 +229,7 @@ function Cloud.Protocol.Http:get(url,payload)
         local T = type(payload.writefunction)
         if T == 'userdata' then
             payload.writefunction:write(tmp_wfunc)
+            payload.writefunction:close()
         elseif T == 'function' then
             payload.writefunction(tmp_wfunc)
         else
