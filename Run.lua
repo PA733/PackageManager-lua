@@ -39,7 +39,7 @@ require "BDS"
 local Parser = require "argparse"
 local Log = Logger:new('LPM')
 
-Order = {}
+StaticCommand = {}
 Command = Parser() {
     name = 'lpm',
     description = '为 LiteLoader 打造的包管理程序。',
@@ -75,7 +75,7 @@ end
 -- ||||||||||||||||||||| Commands ||||||||||||||||||||| --
 ----------------------------------------------------------
 
-Order.Install = Command:command 'install'
+StaticCommand.Install = Command:command 'install'
     :summary '安装一个软件包'
     :description '此命令将从源中检索软件包，并安装。'
     :action(function(dict)
@@ -119,10 +119,10 @@ Order.Install = Command:command 'install'
             sw:install()
         end
     end)
-Order.Install:argument('name', '软件包名称')
-Order.Install:flag('--use-uuid', '使用UUID索引')
+StaticCommand.Install:argument('name', '软件包名称')
+StaticCommand.Install:flag('--use-uuid', '使用UUID索引')
 
-Order.Update = Command:command 'update'
+StaticCommand.Update = Command:command 'update'
     :summary '执行升级操作'
     :description '此命令将先从仓库拉取最新软件包列表，然后升级本地已安装软件版本。如果提供name，则单独升级指定软件包。'
     :action(function(dict)
@@ -157,11 +157,11 @@ Order.Update = Command:command 'update'
         end
         Log:Info('完成。')
     end)
-Order.Update:argument('name', '软件包名称'):args '?'
-Order.Update:flag('--use-uuid', '使用UUID索引')
-Order.Update:flag('--repo-only','只更新仓库')
+StaticCommand.Update:argument('name', '软件包名称'):args '?'
+StaticCommand.Update:flag('--use-uuid', '使用UUID索引')
+StaticCommand.Update:flag('--repo-only','只更新仓库')
 
-Order.Remove = Command:command 'remove'
+StaticCommand.Remove = Command:command 'remove'
     :summary '删除一个软件包'
     :description '此命令将删除指定软件包但不清除软件储存的数据。'
     :action(function(dict)
@@ -172,10 +172,10 @@ Order.Remove = Command:command 'remove'
             SoftwareManager:fromInstalled(uuid):remove(dict.purge)
         end
     end)
-Order.Remove:flag('-p --purge', '同时清除数据 (危险)')
-Order.Remove:argument('name', '软件包名称')
+StaticCommand.Remove:flag('-p --purge', '同时清除数据 (危险)')
+StaticCommand.Remove:argument('name', '软件包名称')
 
-Order.Purge = Command:command 'purge'
+StaticCommand.Purge = Command:command 'purge'
     :summary '清除指定软件的数据'
     :description '此命令将清除指定软件储存的数据 (危险)，但不卸载该软件。'
     :action(function(dict)
@@ -186,9 +186,9 @@ Order.Purge = Command:command 'purge'
             SoftwareManager:fromInstalled(uuid):purge()
         end
     end)
-Order.Purge:argument('name', '软件包名称')
+StaticCommand.Purge:argument('name', '软件包名称')
 
-Order.List = Command:command 'list'
+StaticCommand.List = Command:command 'list'
     :summary '列出已安装软件包'
     :description '此命令将列出所有已经安装的软件包'
     :action(function(dict)
@@ -202,7 +202,7 @@ Order.List = Command:command 'list'
         end
     end)
 
-Order.AddRepo = Command:command 'add-repo'
+StaticCommand.AddRepo = Command:command 'add-repo'
     :summary '添加新仓库'
     :description '提供仓库描述文件链接以添加一个新仓库'
     :action(function(dict)
@@ -267,10 +267,10 @@ Order.AddRepo = Command:command 'add-repo'
         end
         Log:Info('成功添加仓库 %s，标识符为 %s。', parsed_file.name, parsed_file.identifier)
     end)
-Order.AddRepo:argument('link', '仓库描述文件下载链接')
-Order.AddRepo:flag('--no-update', '仅添加仓库（跳过自动启用与更新）')
+StaticCommand.AddRepo:argument('link', '仓库描述文件下载链接')
+StaticCommand.AddRepo:flag('--no-update', '仅添加仓库（跳过自动启用与更新）')
 
-Order.RmRepo = Command:command 'rm-repo'
+StaticCommand.RmRepo = Command:command 'rm-repo'
     :summary '删除一个仓库'
     :description '此命令将删除现存的仓库'
     :action(function(dict)
@@ -285,9 +285,9 @@ Order.RmRepo = Command:command 'rm-repo'
             Log:Info('仓库（%s）已被删除', dict.uuid)
         end
     end)
-Order.RmRepo:argument('uuid', '目标仓库的UUID'):args '?'
+StaticCommand.RmRepo:argument('uuid', '目标仓库的UUID'):args '?'
 
-Order.ListRepo = Command:command 'list-repo'
+StaticCommand.ListRepo = Command:command 'list-repo'
     :summary '列出所有仓库'
     :description '此命令将列出所有已配置的仓库。'
     :action(function(dict)
@@ -307,7 +307,7 @@ Order.ListRepo = Command:command 'list-repo'
         end
     end)
 
-Order.SetRepo = Command:command 'set-repo'
+StaticCommand.SetRepo = Command:command 'set-repo'
     :summary '重设使用的仓库'
     :description '此命令将重设仓库开关状态并更新软件包列表。'
     :action(function(dict)
@@ -325,11 +325,11 @@ Order.SetRepo = Command:command 'set-repo'
         end
         repo:setStatus(dict.status == 'enable')
     end)
-Order.SetRepo:argument('uuid', '目标仓库的UUID。'):args '?'
-Order.SetRepo:argument('status', '开或关')
+StaticCommand.SetRepo:argument('uuid', '目标仓库的UUID。'):args '?'
+StaticCommand.SetRepo:argument('status', '开或关')
     :choices { 'enable', 'disable' }
 
-Order.MoveRepo = Command:command 'move-repo'
+StaticCommand.MoveRepo = Command:command 'move-repo'
     :summary '设置仓库优先级'
     :description '此命令将重设仓库优先级。'
     :action(function(dict)
@@ -348,11 +348,11 @@ Order.MoveRepo = Command:command 'move-repo'
         repo:movePriority(dict.action == 'down')
         Log:Info('已更新仓库优先级。')
     end)
-Order.MoveRepo:argument('uuid', '目标仓库的UUID。'):args '?'
-Order.MoveRepo:argument('action', '提到最前或拉到最后')
+StaticCommand.MoveRepo:argument('uuid', '目标仓库的UUID。'):args '?'
+StaticCommand.MoveRepo:argument('action', '提到最前或拉到最后')
     :choices { 'up', 'down' }
 
-Order.ResetRepoGroup = Command:command('repo-reset-group')
+StaticCommand.ResetRepoGroup = Command:command('repo-reset-group')
     :summary '重设仓库资源组'
     :description '此命令将打印可用资源组列表，并允许重新选择资源组。'
     :action(function(dict)
@@ -387,10 +387,10 @@ Order.ResetRepoGroup = Command:command('repo-reset-group')
         Log:Info('设置成功。')
 
     end)
-Order.ResetRepoGroup:argument('uuid', '目标仓库UUID。'):args '?'
-Order.ResetRepoGroup:flag('--update', '更新模式')
+StaticCommand.ResetRepoGroup:argument('uuid', '目标仓库UUID。'):args '?'
+StaticCommand.ResetRepoGroup:flag('--update', '更新模式')
 
-Order.ListProtocol = Command:command 'list-protocol'
+StaticCommand.ListProtocol = Command:command 'list-protocol'
     :summary '列出下载所有组件'
     :description '此命令将列出所有已安装的下载组件。'
     :action(function(dict)
@@ -401,7 +401,7 @@ Order.ListProtocol = Command:command 'list-protocol'
         end
     end)
 
-Order.Search = Command:command 'search'
+StaticCommand.Search = Command:command 'search'
     :summary '搜索软件包'
     :description '此命令将按照要求在数据库中搜索软件包'
     :action(function(dict)
@@ -438,12 +438,12 @@ Order.Search = Command:command 'search'
             table.concat(chosed.description,'\n')
         ))
     end)
-Order.Search:argument('pattern', '用于模式匹配的字符串/或UUID')
-Order.Search:option('--version -v', '版本匹配表达式'):args '?'
-Order.Search:option('--tags', '标签匹配列表，使用逗号分割'):args '?'
-Order.Search:option('--limit', '限制结果数量，默认无限制'):args '?'
-Order.Search:flag('--use-uuid', '使用UUID查找')
-Order.Search:flag('--top-only', '只在最高优先级仓库中查找')
+StaticCommand.Search:argument('pattern', '用于模式匹配的字符串/或UUID')
+StaticCommand.Search:option('--version -v', '版本匹配表达式'):args '?'
+StaticCommand.Search:option('--tags', '标签匹配列表，使用逗号分割'):args '?'
+StaticCommand.Search:option('--limit', '限制结果数量，默认无限制'):args '?'
+StaticCommand.Search:flag('--use-uuid', '使用UUID查找')
+StaticCommand.Search:flag('--top-only', '只在最高优先级仓库中查找')
 
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Helper ||||||||||||||||| --
