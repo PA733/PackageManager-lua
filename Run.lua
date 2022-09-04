@@ -103,7 +103,7 @@ StaticCommand.Install = Command:command 'install'
             temp_main = Temp:getFile('lpk')
             local url = chosed.file
             if not url or not Cloud:parseLink(url) then
-                url = ('%spackages/%s_%s.%s'):format(Fs:getFileAtDir(RepoManager:get(chosed.repo):getLink()),chosed.name,chosed.version,Package.suffix)
+                url = ('%spackages/%s_%s.%s'):format(Fs:splitDir(RepoManager:get(chosed.repo):getLink()).path,chosed.name,chosed.version,Package.suffix)
             end
             if not Cloud:NewTask {
                 url = url,
@@ -447,20 +447,26 @@ StaticCommand.Search:option('--limit', '限制结果数量，默认无限制'):a
 StaticCommand.Search:flag('--use-uuid', '使用UUID查找')
 StaticCommand.Search:flag('--top-only', '只在最高优先级仓库中查找')
 
-StaticCommand.GenerateVerification = Command:command 'generate-verification'
-    :summary '[DEV] 生成校验文件'
-    :description '此命令将在提供的目录下生成对应的校验文件'
+StaticCommand.MakePackage = Command:command 'make-package'
+    :summary '[DEV] 生成校验文件并打包为LPK'
+    :description '此命令将在提供的目录下生成对应的校验文件然后执行打包。'
     :action(function (dict)
         local rtn,fail_file = Publisher:generateVerification(dict.path)
         if rtn == 0 then
-            Log:Info('生成成功。')
+            Log:Info('校验计算成功。')
         elseif rtn == -1 then
             Log:Error('路径不存在或不是正确的软件包。')
         elseif rtn == -2 then
             Log:Error('为文件 %s 计算SHA1时出错。',fail_file)
         end
+        local stat = Publisher:makePackage(dict.path)
+        if stat then
+            Log:Info('生成成功。')
+        else
+            Log:Error('生成失败。')
+        end
     end)
-StaticCommand.GenerateVerification:argument('path','半成品软件包路径')
+StaticCommand.MakePackage:argument('path','半成品软件包路径')
 
 ----------------------------------------------------------
 -- ||||||||||||||||| Command Helper ||||||||||||||||| --

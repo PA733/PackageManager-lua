@@ -15,17 +15,21 @@ Fs = {}
 ---@param path string
 ---@return string
 local function directory(path)
-    path = (path..dir_sym):gsub('\\',dir_sym):gsub(dir_sym..dir_sym,dir_sym)
+    path = (path..dir_sym):gsub('\\',dir_sym)
     return path
 end
 
----获取文件路径所在的目录路径
----
----例如 `C:/h/o/m/o.txt` --> `C:/h/o/m/`
+---分割文件名称与目录  
+---例如 `C:/h/o/m/o.txt` --> {path = `C:/h/o/m/` file = `o.txt`}
 ---@param url string
----@return string
-function Fs:getFileAtDir(url)
-    return url:sub(1,url:len()-url:reverse():find('/')+1)
+---@return table
+function Fs:splitDir(url)
+    url = self:removeSymbolEndOfPathIfHas(directory(url))
+    local path = url:sub(1,url:len()-url:reverse():find('/')+1)
+    return {
+        path = path,
+        file = url:sub(path:len()+1)
+    }
 end
 
 ---获取当前路径
@@ -125,7 +129,7 @@ end
 ---@param path string
 ---@return boolean
 function Fs:isExist(path)
-    return wf.attributes(self:removeSymbolEndOfPathIfHas(path)) ~= nil
+    return wf.attributes(self:removeSymbolEndOfPathIfHas(directory(path))) ~= nil
 end
 
 ---文件是否内容一致

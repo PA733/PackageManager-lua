@@ -57,7 +57,8 @@ function Package:getDependents(ntree,list)
     }
     local depends = self.meta.depends
     for _,info in pairs(depends) do
-        local sw = manager:fromInstalled(info.uuid)
+        local depend = manager.Helper:handleDependents(info)
+        local sw = manager:fromInstalled(depend.uuid)
         if sw then
             rtn.node_tree:branch(sw:getName()):setNote('已安装')
         else
@@ -142,7 +143,7 @@ function Package:verify(updateMode)
             return
         end
         local ori_path = nowpath .. file
-        local vpath = ori_path:sub((unpacked .. 'content/'):len() + 1)
+        local vpath = ori_path:sub((unpacked .. 'content/'):len() + 2)
         if not allow_unsafe and not manager.Helper:isSafeDirectory(vpath) then
             Log:Error('软件包尝试将文件安装到到不安全目录，安全检查失败。')
             stopAndFailed = true
@@ -157,6 +158,7 @@ function Package:verify(updateMode)
         end
         local sha1 = verification[vpath]
         local statu, pkg_file_sha1 = SHA1:file(ori_path)
+        print(statu,pkg_file_sha1,sha1,ori_path,vpath)
         if not (sha1 and statu) or pkg_file_sha1 ~= sha1 then
             Log:Error('软件包校验失败。')
             stopAndFailed = true
@@ -202,7 +204,7 @@ function Package:install()
     Fs:iterator(unpacked_path .. 'content/', function(nowpath, file)
         local ori_path_file = nowpath .. file
         local inst_path_file = bds_dir .. ori_path_file:sub((unpacked_path .. 'content/'):len() + 1)
-        local inst_path = Fs:getFileAtDir(inst_path_file)
+        local inst_path = Fs:splitDir(inst_path_file).path
         local relative_inst_path_file = inst_path_file:gsub(bds_dir, '')
         if not mkdired[inst_path] and (not Fs:isExist(inst_path) or Fs:getType(inst_path) ~= 'directory') then
             Fs:mkdir(inst_path)
@@ -285,7 +287,7 @@ function Package:update()
     Fs:iterator(unpacked_path .. 'content/', function(nowpath, file)
         local ori_path_file = nowpath .. file
         local inst_path_file = bds_dir .. ori_path_file:sub((unpacked_path .. 'content/'):len() + 1)
-        local inst_path = Fs:getFileAtDir(inst_path_file)
+        local inst_path = Fs:splitDir(inst_path_file).path
         local relative_inst_path_file = inst_path_file:gsub(bds_dir, '')
         if not mkdired[inst_path] and (not Fs:isExist(inst_path) or Fs:getType(inst_path) ~= 'directory') then
             Fs:mkdir(inst_path)
@@ -360,27 +362,27 @@ function Package:handleDependents(scheme)
     end
     local depends = self:getDependents()
     for _, rely in pairs(depends) do --- short information for depends(rely)
-        local insted = manager:fromInstalled(rely.uuid)
-        local name = manager:getNameByUuid(rely.uuid)
-        name = name or rely.uuid
-        if insted and Version:match(insted:getVersion(),rely.version) then
+        local depend = manager.Helper:handleDependents(rely)
+        local insted = manager:fromInstalled(depend.uuid)
+        local name = depend.name
+        if insted and Version:match(insted:getVersion(),depend.version) then
             ntree:branch(name):setNote('已安装')
         else
-            local try = RepoManager:search(rely.uuid,false,'uuid',rely.version,nil,1)
+            local try = RepoManager:search(depend.uuid,false,'uuid',depend.version,nil,1)
             if #try == 0 then
                 ntree:branch(name):setNote('版本不兼容')
                 rtn.errors[#rtn.errors+1] = {
                     type = 'notfound',
-                    uuid = rely.uuid,
-                    version = rely.version,
+                    uuid = depend.uuid,
+                    version = depend.version,
                     name = name
                 }
             elseif insted and Version:isBigger(insted:getVersion(),try:getVersion()) then
                 ntree:branch(name):setNote('不能降级')
                 rtn.errors[#rtn.errors+1] = {
                     type = 'cantdegrade',
-                    uuid = rely.uuid,
-                    version = rely.version,
+                    uuid = depend.uuid,
+                    version = depend.version,
                     name = name
                 }
             else --- should update installed denpendent [this].

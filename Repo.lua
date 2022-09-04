@@ -166,7 +166,7 @@ function Repo:update(firstUpdate)
             local file = Fs:open(path,"wb")
             local url = class.list
             if not Cloud:parseLink(class.list) then
-                url = ('%sgroups/%s/%s'):format(Fs:getFileAtDir(self:getLink()),group.name,class.list)
+                url = ('%sgroups/%s/%s'):format(Fs:splitDir(self:getLink()).path,group.name,class.list)
             end
             local res = Cloud:NewTask {
                 url = url,
@@ -212,7 +212,7 @@ function Repo:getMultiResource(name)
     end
     local url = item.file
     if not Cloud:parseLink(item.file) then
-        url = ('%s%s%s'):format(Fs:getFileAtDir(self:getLink()),'multi/',item.file)
+        url = ('%s%s%s'):format(Fs:splitDir(self:getLink()).path,'multi/',item.file)
     end
     return url
 end

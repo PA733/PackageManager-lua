@@ -51,7 +51,6 @@ function P7zip:extract(path,topath)
         return false,''
     end
     topath = topath or Temp:getDirectory()
-    print(finmt(('%s7za x -o"%s" -y "%s"'):format(self.path,topath,path)))
     return Wf.popen(finmt(('%s7za x -o"%s" -y "%s"'):format(self.path,topath,path))):read('*a'):find('Everything is Ok')~=nil,topath
 end
 
@@ -59,10 +58,6 @@ end
 ---@param path string 欲压缩文件(夹)路径
 ---@param topath string 压缩文件创建路径
 function P7zip:archive(path,topath)
-    if not Fs:isExist(path) then
-        Log:Error('压缩失败，因为文件(夹)不存在。')
-        return
-    end
     return Wf.popen(finmt(('%s7za a -y "%s" "%s"'):format(self.path,topath,path))):read('*a'):find('Everything is Ok') ~= nil
 end
 

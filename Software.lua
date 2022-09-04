@@ -56,13 +56,14 @@ function Software:getDependents(ntree,list)
     }
     local depends = self.meta.depends
     for _,info in pairs(depends) do
-        local sw = manager:fromInstalled(info.uuid)
+        local depend = manager.Helper:handleDependents(info)
+        local sw = manager:fromInstalled(depend.uuid)
         if sw then
             rtn.node_tree:branch(sw:getName()):setNote('已安装')
         else
-            local res = manager:search(info.uuid,false,true)
+            local res = manager:search(depend.uuid,false,true)
             if #res.data == 0 then
-                rtn.node_tree:branch(info.uuid):setNote('未找到')
+                rtn.node_tree:branch(depend.uuid):setNote('未找到')
             else
                 rtn.list[#rtn.list+1] = res.data[1]
                 rtn.node_tree:branch(res.data[1].name)
@@ -131,7 +132,7 @@ function Software:remove(purge)
         end
     end
     for n, fpath in pairs(installed_paths) do
-        local xpath = Fs:getFileAtDir(fpath)
+        local xpath = Fs:splitDir(fpath).path
         local rpath = bds_dir .. xpath
         if Fs:isExist(rpath) then
             if Fs:getFileCount(rpath) ~= 0 then

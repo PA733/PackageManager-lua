@@ -24,7 +24,7 @@ function Publisher:generateVerification(path)
             stopped = nowpath..file
             stopAndFailed = true
         else
-            verify[(nowpath..file):sub((path..'content/'):len()+2)] = sha1
+            verify[(nowpath..file):sub((path..'content/'):len()+1)] = sha1
         end
     end)
     if stopAndFailed then
@@ -34,4 +34,8 @@ function Publisher:generateVerification(path)
         data = verify
     },true))
     return 0
+end
+
+function Publisher:makePackage(path)
+    return P7zip:archive(path..'/*',('%s/../%s_%s.lpk'):format(path,Fs:splitDir(path).file,JSON:parse(Fs:readFrom(path..'/self.json')).version))
 end

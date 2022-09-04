@@ -34,6 +34,14 @@ function SoftwareManager.Helper:isWhitePackage(uuid)
     return array.fetch(ENV.INSTALLER_WHITELIST, uuid) ~= nil
 end
 
+function SoftwareManager.Helper:parseDependentReq(tab)
+    local rtn = {}
+    rtn.name = tab[1]
+    rtn.uuid = tab[2]
+    rtn.version = tab[3] or '*'
+    return rtn
+end
+
 ---初始化
 ---@return boolean
 function SoftwareManager:init()
