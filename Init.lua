@@ -4,9 +4,6 @@
 
 --]] ----------------------------------------
 
-package.path = package.path..';./share/?.lua;./share/json/?.lua'
-package.cpath = package.cpath..';./lib/?.dll'
-
 require('filesystem')
 
 --- Check developer mode.
