@@ -1,0 +1,71 @@
+Option "executable"
+Option "minify-level=full"
+Option "gzip"
+Option "compile"
+
+--输出文件
+Output "out.lua"
+
+--Init
+Module "Init" "Init.lua"
+    Module "filesystem" "share/filesystem.lua"
+--json-safe
+Module "json-safe" "share/json-safe.lua"
+    Module "logger" "share/logger.lua"
+    Module "json-beautify" "share/json/json-beautify.lua"
+        Module "json" "share/json/json.lua"
+--logger
+Module "logger" "share/logger.lua"
+--7Zip
+Module "7zip" "share/7Zip.lua"
+    Module "logger" "share/logger.lua"
+    Module "temp" "share/temp.lua"
+    Module "filesystem" "share/filesystem.lua"
+--argparse
+Module "argparse" "share/argparse.lua"
+--cloud
+Module "cloud" "share/cloud.lua"
+    Module "cURL" "share/cURL.lua"
+        Module "cURL.impl.cURL" "share/cURL/impl/cURL.lua"
+    Module "json-safe" "share/json-safe.lua"
+--cURL
+Module "cURL" "share/cURL.lua"
+    Module "cURL.impl.cURL" "share/cURL/impl/cURL.lua"
+--filesystem
+Module "filesystem" "share/filesystem.lua"
+--native-type-helper
+Module "native-type-helper" "share/native-type-helper.lua"
+--sha1
+Module "sha1" "share/sha1.lua"
+    Module "native-type-helper" "share/native-type-helper.lua"
+--temp
+Module "temp" "share/temp.lua"
+--node-tree
+Module "node-tree" "share/node-tree.lua"
+    Module "native-type-helper" "share/native-type-helper.lua"
+
+--Environment
+Module "Environment" "Environment.lua"
+--Version
+Module "Version" "Version.lua"
+--I18N
+Module "I18N" "I18N.lua"
+--Settings
+Module "Settings" "Settings.lua"
+--RepoManager
+Module "RepoManager" "RepoManager.lua"
+--SoftwareManager
+Module "SoftwareManager" "SoftwareManager.lua"
+--Package
+Module "Package" "Package.lua"
+--Software
+Module "Software" "Software.lua"
+--Repo
+Module "Repo" "Repo.lua"
+--BDS
+Module "BDS" "BDS.lua"
+
+--tools.Publisher
+Module "tools.Publisher" "tools/Publisher.lua"
+
+Main "Run.lua"
