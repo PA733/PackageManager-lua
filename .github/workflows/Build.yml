@@ -1,0 +1,33 @@
+name: Build lpm
+on:
+  push:
+  pull_request:
+
+jobs:
+  Build_lua:
+    runs-on: ${{ matrix.os }}
+    name: lua.${{ matrix.make_type }}
+    env:
+      lua_version: 5.4.4
+    strategy:
+      matrix:
+        os: ["windows-latest"]
+        make_type: ["exe", "lib", "dll"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Fetch lua
+        run: |
+          cd ${{ runner.workspace }}/PackageManager-lua/lib
+          C:/msys64/usr/bin/wget.exe -q http://www.lua.org/ftp/lua-${{env.lua_version}}.tar.gz
+          tar zxvf lua-${{env.lua_version}}.tar.gz
+          mv lua-${{env.lua_version}} lua-src
+      - name: Build lua
+        run: |
+          cd ${{runner.workspace}}/PackageManager-lua/lib/lua
+          C:/"Program Files"/"Microsoft Visual Studio"/2022/Enterprise/Common7/IDE/devenv ./lua.sln /build "Release|x64" /Project lua.${{ matrix.make_type }}
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: lua
+          path: ${{ runner.workspace }}/PackageManager-lua/lib/lua/x64/Release/lua.${{ matrix.make_type }}
