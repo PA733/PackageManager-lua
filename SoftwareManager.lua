@@ -67,7 +67,7 @@ end
 ---@return Package|nil
 function SoftwareManager:fromFile(dir)
     Log:Info('正在解析软件包...')
-    local stat, unpacked_path = P7zip:extract(dir)
+    local stat, unpacked_path = zippp:extract(dir)
     if not stat then
         Log:Error('解压缩软件包时出现异常。')
         return nil

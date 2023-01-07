@@ -37,5 +37,5 @@ function Publisher:generateVerification(path)
 end
 
 function Publisher:makePackage(path)
-    return P7zip:archive(path..'/*',('%s/../%s_%s.lpk'):format(path,Fs:splitDir(path).file,JSON:parse(Fs:readFrom(path..'/self.json')).version))
+    return zippp:archive(path..'/*',('%s/../%s_%s.lpk'):format(path,Fs:splitDir(path).file,JSON:parse(Fs:readFrom(path..'/self.json')).version))
 end
