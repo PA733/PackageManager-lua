@@ -11,7 +11,7 @@ Wf = require "winfile"
 local Log = Logger:new('7Zip')
 
 P7zip = {
-    path = arg[0]:gsub("Run.lua", "")..'lib\\7zip\\',
+    path = 'lib/7zip/',
     files = {
         '7za.exe',
         '7za.dll',
